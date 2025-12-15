@@ -1,0 +1,504 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum DiscountType {
+  percent
+  fixed
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  success
+  failed
+  refunded
+}
+
+/**
+ * --------------------
+ * CORE / ACCESS
+ * --------------------
+ */
+model Role {
+  id          Int      @id @default(autoincrement())
+  name_role   String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  accounts        Account[]
+  rolePermissions RolePermission[]
+}
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  id           Int      @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model Account {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  avatar    String   @default("")
+  roleId    Int
+  is_active Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role            Role     @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewsApproved Review[] @relation("Reviewer")
+}
+
+/**
+ * --------------------
+ * USERS
+ * --------------------
+ */
+model User {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  password       String
+  phone          String?
+  address        String?
+  points         Int      @default(0)
+  avatar         String?
+  is_active      Boolean  @default(true)
+  is_verifyEmail Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  pointHistory  PointHistory[]
+  cart          Cart?
+  orders        Order[]
+  reviews       Review[]
+  userPhones    UserPhone[]
+  userAddresses UserAddress[]
+}
+
+model PointHistory {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  points      Int
+  type        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+/**
+ * --------------------
+ * CATEGORIES & GENDERS
+ * --------------------
+ */
+model Gender {
+  id          Int      @id @default(autoincrement())
+  name_gender String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categories Category[]
+}
+
+model Category {
+  id            Int      @id @default(autoincrement())
+  name_category String   @unique
+  genderId      Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  gender   Gender?   @relation(fields: [genderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  products Product[]
+}
+
+/**
+ * --------------------
+ * PRODUCTS
+ * --------------------
+ */
+model ProductStatus {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  products Product[]
+}
+
+model Sale {
+  id             Int          @id @default(autoincrement())
+  name_sale      String
+  description    String?
+  discount_type  DiscountType @default(percent)
+  discount_value Decimal      @default("0") @db.Decimal(12, 2)
+  start_date     DateTime?
+  end_date       DateTime?
+  is_active      Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id           Int      @id @default(autoincrement())
+  name_product String
+  description  String?
+  price        Decimal  @db.Decimal(12, 2)
+  image_url    String?
+  sold         Int      @default(0)
+  categoryId   Int?
+  saleId       Int?
+  statusId     Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sale     Sale?          @relation(fields: [saleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  status   ProductStatus? @relation(fields: [statusId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  variants ProductVariant[]
+  reviews  Review[]
+}
+
+/**
+ * --------------------
+ * VARIANTS, COLOR, SIZE
+ * --------------------
+ */
+model Color {
+  id         Int     @id @default(autoincrement())
+  name_color String
+  hex        String?
+
+  variants ProductVariant[]
+
+  @@unique([name_color, hex])
+}
+
+model Size {
+  id        Int    @id @default(autoincrement())
+  name_size String @unique
+
+  variants ProductVariant[]
+}
+
+model ProductVariant {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  colorId   Int?
+  sizeId    Int?
+  stock     Int      @default(0)
+  sold      Int      @default(0)
+  image_url String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  color   Color?  @relation(fields: [colorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  size    Size?   @relation(fields: [sizeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, colorId, sizeId])
+  @@index([productId])
+}
+
+/**
+ * --------------------
+ * CART
+ * --------------------
+ */
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  variantId Int
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([cartId])
+  @@index([variantId])
+}
+
+/**
+ * --------------------
+ * VOUCHERS & SHIPPING & PROVINCES
+ * --------------------
+ */
+model Voucher {
+  id              Int          @id @default(autoincrement())
+  code            String       @unique
+  description     String?
+  discount_type   DiscountType @default(percent)
+  discount_value  Decimal      @default("0") @db.Decimal(12, 2)
+  min_order_value Decimal?     @db.Decimal(12, 2)
+  start_date      DateTime?
+  end_date        DateTime?
+  usage_limit     Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  orders Order[]
+}
+
+model ShippingMethod {
+  id             Int      @id @default(autoincrement())
+  name           String
+  base_fee       Decimal  @default("0") @db.Decimal(12, 2)
+  fee_per_km     Decimal  @default("0") @db.Decimal(12, 2)
+  estimated_days Int?
+  createdAt      DateTime @default(now())
+
+  orders Order[]
+}
+
+model Province {
+  id            Int      @id @default(autoincrement())
+  name_province String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fromDistances ProvinceDistance[] @relation("fromProvince")
+  toDistances   ProvinceDistance[] @relation("toProvince")
+  orders        Order[]
+}
+
+model ProvinceDistance {
+  id             Int      @id @default(autoincrement())
+  fromProvinceId Int
+  toProvinceId   Int
+  distance_km    Float
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  fromProvince Province @relation("fromProvince", fields: [fromProvinceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  toProvince   Province @relation("toProvince", fields: [toProvinceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([fromProvinceId, toProvinceId])
+}
+
+/**
+ * --------------------
+ * ORDERS
+ * --------------------
+ */
+model OrderStatus {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  sort_order    Int?
+  is_final      Boolean  @default(false)
+  is_cancelable Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders Order[]
+}
+
+model PointRule {
+  id              Int          @id @default(autoincrement())
+  required_points Int
+  discount_type   DiscountType
+  discount_value  Decimal      @db.Decimal(12, 2)
+  is_active       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Order {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  voucherId        Int?
+  shippingMethodId Int?
+  provinceId       Int?
+  statusId         Int?
+  total_price      Decimal  @db.Decimal(12, 2)
+  shipping_fee     Decimal  @default("0") @db.Decimal(12, 2)
+  used_points      Int      @default(0)
+  earned_points    Int      @default(0)
+  payment_method   Int // FK -> PaymentMethod.id
+  shipping_address String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  voucher        Voucher?        @relation(fields: [voucherId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  shippingMethod ShippingMethod? @relation(fields: [shippingMethodId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  province       Province?       @relation(fields: [provinceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  status         OrderStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  paymentMethod  PaymentMethod   @relation(fields: [payment_method], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  items   OrderItem[]
+  payment Payment?
+  reviews Review[]
+}
+
+/**
+ * --------------------
+ * ORDER ITEMS, REVIEWS, PAYMENTS
+ * --------------------
+ */
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  variantId Int
+  price     Decimal  @db.Decimal(12, 2)
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model Review {
+  id          Int       @id @default(autoincrement())
+  productId   Int
+  userId      Int
+  rating      Int
+  comment     String?
+  is_approved Boolean   @default(false)
+  approved_at DateTime?
+  approved_by Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reviewer Account? @relation("Reviewer", fields: [approved_by], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  // Prisma doesn't support @@check; add DB CHECK via migration SQL (see below)
+  order    Order?   @relation(fields: [orderId], references: [id])
+  orderId  Int?
+
+  @@index([productId])
+  @@index([userId])
+}
+
+model PaymentMethod {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  description String?
+  is_active   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders   Order[]
+  payments Payment[]
+}
+
+model Payment {
+  id                    Int           @id @default(autoincrement())
+  orderId               Int           @unique
+  amount                Decimal       @db.Decimal(12, 2)
+  status                PaymentStatus @default(pending)
+  payment_method        Int
+  transaction_reference String?
+  payment_date          DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  method PaymentMethod @relation(fields: [payment_method], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+/**
+ * --------------------
+ * USER CONTACTS
+ * --------------------
+ */
+model UserPhone {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  phone      String
+  is_primary Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, is_primary])
+  @@index([userId])
+}
+
+model UserAddress {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  address    String
+  is_primary Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, is_primary])
+  @@index([userId])
+}
+
+/**
+ * --------------------
+ * REPORTS
+ * --------------------
+ */
+model DailyReport {
+  id            Int      @id @default(autoincrement())
+  report_date   DateTime @unique
+  total_orders  Int      @default(0)
+  total_revenue Decimal  @default("0") @db.Decimal(18, 2)
+  new_users     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model MonthlyReport {
+  id            Int      @id @default(autoincrement())
+  year          Int
+  month         Int
+  total_orders  Int      @default(0)
+  total_revenue Decimal  @default("0") @db.Decimal(18, 2)
+  new_users     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([year, month])
+}
