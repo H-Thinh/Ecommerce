@@ -1,4 +1,4 @@
-import AccountType from "../type/AccountType";
+import AccountType from "../types/AccountType";
 
 const accountValidation = (data: AccountType) => {
   const errors: Partial<Record<keyof AccountType, string>> = {};
@@ -9,6 +9,10 @@ const accountValidation = (data: AccountType) => {
 
   if (!data.email) {
     errors.email = "Vui lòng nhập email";
+  }
+
+  if (!data.phone) {
+    errors.phone = "Vui lòng nhập số phone";
   }
 
   if (!data.password) {

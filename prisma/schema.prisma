@@ -21,6 +21,18 @@ enum PaymentStatus {
   refunded
 }
 
+enum Region {
+  NORTH // Miền Bắc
+  CENTRAL // Miền Trung
+  SOUTH // Miền Nam
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 /**
  * --------------------
  * CORE / ACCESS
@@ -33,20 +45,27 @@ model Role {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  accounts        Account[]
-  rolePermissions RolePermission[]
+  accounts             Account[]
+  rolePermissions      RolePermission[]
+  rolePermissionGroups RolePermissionGroup[]
 }
 
 model Permission {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  label       String
   description String?
+  groupId     Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  group           PermissionGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   rolePermissions RolePermission[]
+
+  @@index([groupId])
 }
 
 model RolePermission {
-  id           Int      @id @default(autoincrement())
   roleId       Int
   permissionId Int
   createdAt    DateTime @default(now())
@@ -59,17 +78,19 @@ model RolePermission {
 
 model Account {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @unique
   email     String   @unique
-  password  String
+  password  String   @unique
+  phone     String   @unique
   avatar    String   @default("")
   roleId    Int
   is_active Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  role            Role     @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  reviewsApproved Review[] @relation("Reviewer")
+  role            Role      @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewsApproved Review[]  @relation("Reviewer")
+  payments        Payment[]
 }
 
 /**
@@ -118,7 +139,7 @@ model PointHistory {
 model Gender {
   id          Int      @id @default(autoincrement())
   name_gender String   @unique
-  description String?
+  slug        String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -126,11 +147,14 @@ model Gender {
 }
 
 model Category {
-  id            Int      @id @default(autoincrement())
-  name_category String   @unique
-  genderId      Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  name_category  String   @unique
+  slug           String   @unique
+  description    String?
+  image_category String
+  genderId       Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   gender   Gender?   @relation(fields: [genderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   products Product[]
@@ -144,6 +168,7 @@ model Category {
 model ProductStatus {
   id          Int     @id @default(autoincrement())
   name        String  @unique
+  hex         String
   description String?
 
   products Product[]
@@ -168,8 +193,9 @@ model Product {
   id           Int      @id @default(autoincrement())
   name_product String
   description  String?
+  slug         String   @unique
   price        Decimal  @db.Decimal(12, 2)
-  image_url    String?
+  image_url    String?  @db.LongText
   sold         Int      @default(0)
   categoryId   Int?
   saleId       Int?
@@ -182,7 +208,6 @@ model Product {
   status   ProductStatus? @relation(fields: [statusId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   variants ProductVariant[]
-  reviews  Review[]
 }
 
 /**
@@ -203,6 +228,7 @@ model Color {
 model Size {
   id        Int    @id @default(autoincrement())
   name_size String @unique
+  Symbol    String @unique
 
   variants ProductVariant[]
 }
@@ -270,49 +296,15 @@ model Voucher {
   description     String?
   discount_type   DiscountType @default(percent)
   discount_value  Decimal      @default("0") @db.Decimal(12, 2)
-  min_order_value Decimal?     @db.Decimal(12, 2)
+  min_order_value Decimal      @db.Decimal(12, 2)
   start_date      DateTime?
   end_date        DateTime?
   usage_limit     Int?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  is_active       Boolean      @default(true)
 
   orders Order[]
-}
-
-model ShippingMethod {
-  id             Int      @id @default(autoincrement())
-  name           String
-  base_fee       Decimal  @default("0") @db.Decimal(12, 2)
-  fee_per_km     Decimal  @default("0") @db.Decimal(12, 2)
-  estimated_days Int?
-  createdAt      DateTime @default(now())
-
-  orders Order[]
-}
-
-model Province {
-  id            Int      @id @default(autoincrement())
-  name_province String   @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  fromDistances ProvinceDistance[] @relation("fromProvince")
-  toDistances   ProvinceDistance[] @relation("toProvince")
-  orders        Order[]
-}
-
-model ProvinceDistance {
-  id             Int      @id @default(autoincrement())
-  fromProvinceId Int
-  toProvinceId   Int
-  distance_km    Float
-  updatedAt      DateTime @default(now()) @updatedAt
-
-  fromProvince Province @relation("fromProvince", fields: [fromProvinceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  toProvince   Province @relation("toProvince", fields: [toProvinceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@unique([fromProvinceId, toProvinceId])
 }
 
 /**
@@ -324,6 +316,9 @@ model OrderStatus {
   id            Int      @id @default(autoincrement())
   name          String   @unique
   sort_order    Int?
+  code          String   @unique
+  hex           String
+  description   String
   is_final      Boolean  @default(false)
   is_cancelable Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -343,31 +338,35 @@ model PointRule {
 }
 
 model Order {
-  id               Int      @id @default(autoincrement())
-  userId           Int
-  voucherId        Int?
-  shippingMethodId Int?
-  provinceId       Int?
-  statusId         Int?
-  total_price      Decimal  @db.Decimal(12, 2)
-  shipping_fee     Decimal  @default("0") @db.Decimal(12, 2)
-  used_points      Int      @default(0)
-  earned_points    Int      @default(0)
-  payment_method   Int // FK -> PaymentMethod.id
-  shipping_address String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id        Int  @id @default(autoincrement())
+  userId    Int?
+  voucherId Int?
+  statusId  Int?
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  voucher        Voucher?        @relation(fields: [voucherId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  shippingMethod ShippingMethod? @relation(fields: [shippingMethodId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  province       Province?       @relation(fields: [provinceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  status         OrderStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  paymentMethod  PaymentMethod   @relation(fields: [payment_method], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  // Thông tin người nhận
+  receiver_name    String
+  receiver_email   String
+  receiver_phone   String
+  receiver_address String
+  receiver_note    String?
+
+  total_price           Decimal @db.Decimal(12, 2)
+  shipping_fee          Decimal @default("0") @db.Decimal(12, 2)
+  used_points           Int     @default(0)
+  earned_points         Int     @default(0)
+  point_discount_amount Decimal @default("0") @db.Decimal(12, 2)
+  payment_method        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  voucher       Voucher?      @relation(fields: [voucherId], references: [id])
+  status        OrderStatus?  @relation(fields: [statusId], references: [id])
+  paymentMethod PaymentMethod @relation(fields: [payment_method], references: [id])
 
   items   OrderItem[]
-  payment Payment?
-  reviews Review[]
+  payment Payment[]
 }
 
 /**
@@ -386,32 +385,35 @@ model OrderItem {
 
   order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviews Review[]
 
   @@index([orderId])
   @@index([variantId])
 }
 
 model Review {
-  id          Int       @id @default(autoincrement())
-  productId   Int
+  id          Int @id @default(autoincrement())
   userId      Int
-  rating      Int
-  comment     String?
-  is_approved Boolean   @default(false)
+  orderItemId Int @unique
+
+  rating  Int
+  comment String?
+  images  String? @db.LongText
+
+  status      ReviewStatus @default(PENDING)
   approved_at DateTime?
   approved_by Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  reviewer Account? @relation("Reviewer", fields: [approved_by], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  // Prisma doesn't support @@check; add DB CHECK via migration SQL (see below)
-  order    Order?   @relation(fields: [orderId], references: [id])
-  orderId  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([productId])
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer  Account?   @relation("Reviewer", fields: [approved_by], references: [id], onDelete: SetNull)
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id])
+  productId Int?
+
   @@index([userId])
+  @@index([status])
 }
 
 model PaymentMethod {
@@ -429,17 +431,19 @@ model PaymentMethod {
 
 model Payment {
   id                    Int           @id @default(autoincrement())
-  orderId               Int           @unique
+  orderId               Int
   amount                Decimal       @db.Decimal(12, 2)
   status                PaymentStatus @default(pending)
   payment_method        Int
-  transaction_reference String?
+  transaction_reference String?       @unique
   payment_date          DateTime?
+  collectedByAdminId    Int?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  method PaymentMethod @relation(fields: [payment_method], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  collectedByAdmin Account?      @relation(fields: [collectedByAdminId], references: [id])
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  method           PaymentMethod @relation(fields: [payment_method], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 /**
@@ -501,4 +505,30 @@ model MonthlyReport {
   updatedAt     DateTime @updatedAt
 
   @@unique([year, month])
+}
+
+model PermissionGroup {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // product, order, user, report...
+  label       String // Quản lý sản phẩm
+  description String?
+  sort_order  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions          Permission[]
+  rolePermissionGroups RolePermissionGroup[]
+}
+
+model RolePermissionGroup {
+  roleId            Int
+  permissionGroupId Int
+  is_enabled        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  role            Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionGroup PermissionGroup @relation(fields: [permissionGroupId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionGroupId])
 }

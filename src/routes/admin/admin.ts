@@ -1,36 +1,60 @@
 import express from "express";
 
-import accountController from "../../controller/accountController";
-
-import { uploadAvatar } from "../../middlewares/upload";
-import { verifyToken } from "../../middlewares/verifyToken";
 import adminController from "../../controller/adminController";
+
+import {
+  uploadAvatarAccount,
+  uploadAvatarUser,
+} from "../../middlewares/upload";
 import { checkRole } from "../../middlewares/checkRole";
-import roleController from "../../controller/roleController";
+import verifyToken from "../../middlewares/verifyToken";
 
 const router = express.Router();
 
-//account
-router.post("/add", verifyToken, adminController.createAccount);
+router.get("/", adminController.getAccounts);
 
-router.delete(
-  "/delete/:id",
+router.post(
+  "/",
   verifyToken,
   checkRole(["admin"]),
-  adminController.deleteAccountById
+  adminController.createAccount,
 );
 
 router.put(
-  "/update/:id",
+  "/:id",
   verifyToken,
   checkRole(["admin"]),
-  uploadAvatar.single("avatar"),
-  accountController.updateAccountById
+  uploadAvatarAccount.single("avatarAccount"),
+  adminController.updateAccountById,
 );
 
-//role
-router.post("/add", roleController.createRole);
+router.delete(
+  "/:id",
+  verifyToken,
+  checkRole(["admin"]),
+  adminController.deleteAccountById,
+);
 
-router.put("/update/:roleId", roleController.updateRoleById);
+//users
+
+router.post(
+  "/users/",
+  verifyToken,
+  uploadAvatarUser.single("avatarUser"),
+  adminController.createUser,
+);
+
+router.get("/users/", verifyToken, adminController.getAllUsers);
+
+router.get("/users/:id", verifyToken, adminController.getUserById);
+
+router.put(
+  "/users/:id",
+  verifyToken,
+  uploadAvatarUser.single("avatarUser"),
+  adminController.updateUserById,
+);
+
+router.delete("/users/:id", verifyToken, adminController.deleteUserById);
 
 export default router;

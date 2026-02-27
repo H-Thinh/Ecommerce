@@ -1,10 +1,26 @@
 import multer from "multer";
-import { createCloudinaryStorage } from "../utils/cloudinary.storage";
+import { createCloudinaryStorage } from "../services/cloudinary/cloudinary.storage";
 
-// export const uploadCover = multer({
-//   storage: createCloudinaryStorage({ folder: "coverImage" }),
-// });
+export const uploadProductCovers = multer({
+  storage: createCloudinaryStorage({ folder: "productCover" }),
+});
 
-export const uploadAvatar = multer({
-  storage: createCloudinaryStorage({ folder: "avatar" }),
+export const uploadVarianttCover = multer({
+  storage: createCloudinaryStorage({ folder: "variantCover" }),
+});
+
+export const uploadAvatarAccount = multer({
+  storage: createCloudinaryStorage({ folder: "avatar_account" }),
+});
+
+export const uploadAvatarUser = multer({
+  storage: createCloudinaryStorage({ folder: "avatar_user" }),
+});
+
+export const uploadCoverCategory = multer({
+  storage: createCloudinaryStorage({ folder: "category" }),
+});
+
+export const uploadImageReview = multer({
+  storage: createCloudinaryStorage({ folder: "review" }),
 });

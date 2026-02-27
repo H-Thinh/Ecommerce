@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import permissionModel from "../model/permissionModel";
-import PermissionType from "../type/PermissionType";
+import permissionModel from "../models/permissionModel";
+import PermissionType from "../types/PermissionType";
 
 const createPermission = async (req: Request, res: Response) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, groupId, label } = req.body || {};
 
     const nameExist = await permissionModel.checkName(name);
 
@@ -12,39 +12,64 @@ const createPermission = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Trùng name" });
     }
 
+    const intGroupId = parseInt(groupId);
+
     const permission = await permissionModel.createPermission({
       name,
       description,
+      groupId: intGroupId,
+      label,
     });
 
-    res.status(201).json({ message: "Thành công", data: permission });
+    res.status(201).json({
+      message: "Tạo dữ liệu thành công",
+      data: permission,
+      type: "success",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Lỗi server", type: "error" });
   }
 };
 
 const getPermissions = async (req: Request, res: Response) => {
   try {
     const permissions = await permissionModel.getPermissions();
-    res.status(200).json({ message: "Thành công", data: permissions });
+    res.status(200).json({
+      message: "Lấy dữ liệu các quyền thành công",
+      data: permissions,
+      type: "success",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Lỗi server", type: "error" });
   }
 };
 
 const updatePermissionById = async (req: Request, res: Response) => {
   try {
-    const id = Number(req.params.id);
+    const permissionId = Number(req.params.permissionId);
 
-    const { name, description } = req.body;
+    const permissionExist = await permissionModel.getPermissionById(
+      permissionId
+    );
+
+    if (!permissionExist) {
+      return res
+        .status(404)
+        .json({ message: "Permission không tồn tại", type: "error" });
+    }
+
+    const { name, description } = req.body || {};
 
     if (name) {
-      const nameExist = await permissionModel.checkNameExcludeId(name, id);
+      const nameExist = await permissionModel.checkNameExcludeId(
+        name,
+        permissionId
+      );
 
       if (nameExist) {
-        return res.status(400).json({ message: "Trùng name" });
+        return res.status(400).json({ message: "Trùng name", type: "error" });
       }
     }
 
@@ -54,50 +79,84 @@ const updatePermissionById = async (req: Request, res: Response) => {
     if (description !== undefined) dataUpdate.description = description;
 
     if (Object.keys(dataUpdate).length === 0) {
-      return res.status(400).json({ message: "Không có dữ liệu để cập nhật" });
+      return res
+        .status(400)
+        .json({ message: "Không có dữ liệu để cập nhật", type: "error" });
     }
 
-    const permission = await permissionModel.updatePermissionById(id, {
-      name,
-      description,
-    });
+    const permission = await permissionModel.updatePermissionById(
+      permissionId,
+      dataUpdate
+    );
 
-    res
-      .status(200)
-      .json({ message: "Cập nhật role thành công", data: permission });
+    res.status(200).json({
+      message: "Cập nhật permission thành công",
+      data: permission,
+      type: "success",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Lỗi server", type: "error" });
   }
 };
 
-const deletePermission = async (req: Request, res: Response) => {
+const deletePermissionById = async (req: Request, res: Response) => {
   try {
-    const id = Number(req.params.id);
+    const permissionId = Number(req.params.permissionId);
 
-    const permissionExist = await permissionModel.findPermissionById(id);
+    const permissionExist = await permissionModel.getPermissionById(
+      permissionId
+    );
 
     if (!permissionExist) {
-      return res.status(404).json({ message: "Permission không tồn tại" });
+      return res
+        .status(404)
+        .json({ message: "Permission không tồn tại", type: "error" });
     }
 
-    await permissionModel.deletePermissionById(id);
+    await permissionModel.deletePermissionById(permissionId);
 
     const remainingPermissions = await permissionModel.getPermissions();
 
-    res
-      .status(200)
-      .json({ message: "Xóa thành công", data: remainingPermissions });
+    res.status(200).json({
+      message: "Xóa thành công",
+      data: remainingPermissions,
+      type: "success",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Lỗi server", type: "error" });
+  }
+};
+
+const getPermissionById = async (req: Request, res: Response) => {
+  try {
+    const permissionId = Number(req.params.permissionId);
+
+    const permission = await permissionModel.getPermissionById(permissionId);
+
+    if (!permission) {
+      return res
+        .status(404)
+        .json({ message: "Permission không tồn tại", type: "error" });
+    }
+
+    res.status(200).json({
+      message: "Lấy dữ liệu thành công",
+      data: permission,
+      type: "success",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi server", type: "error" });
   }
 };
 
 const permissionController = {
   getPermissions,
   createPermission,
-  deletePermission,
+  getPermissionById,
+  deletePermissionById,
   updatePermissionById,
 };
 
