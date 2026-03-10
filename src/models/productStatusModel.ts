@@ -33,7 +33,6 @@ const getProductStatusById = async (id: number) => {
     },
   });
 };
-
 const getProductStatusByName = async (name: string) => {
   return await prisma.productStatus.findUnique({
     where: { name },

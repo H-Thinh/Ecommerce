@@ -1,4 +1,6 @@
-export default interface ProductType {
+import { Season } from "../generated/prisma";
+
+export default interface CreateProductType {
   name_product: string;
   description: string;
   price: number;
@@ -6,6 +8,7 @@ export default interface ProductType {
   categoryId: number;
   saleId?: number;
   slug: string;
+  season: Season;
 }
 
 export interface ProductVariantType {

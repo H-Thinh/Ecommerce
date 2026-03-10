@@ -28,7 +28,7 @@ export default interface OrderType {
 export interface CreateOrderType {
   userId: number;
   voucherId?: number;
-  statusId?: number;
+  statusId: number;
   total_price: number;
   shipping_fee: number;
   used_points?: number;

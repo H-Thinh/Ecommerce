@@ -50,35 +50,41 @@ const getAllPayments = async () => {
 };
 
 const getPaymentById = async (id: number) => {
-  return await prisma.payment.findUnique({
+  const payment = await prisma.payment.findUnique({
     where: { id },
-    include: {
-      order: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
-          items: {
-            include: {
-              variant: {
-                include: {
-                  product: true,
-                  color: true,
-                  size: true,
-                },
-              },
-            },
-          },
-        },
-      },
-      method: true,
-    },
+    // include: {
+    //   order: {
+    //     include: {
+    //       user: {
+    //         select: {
+    //           id: true,
+    //           name: true,
+    //           email: true,
+    //           phone: true,
+    //         },
+    //       },
+    //       items: {
+    //         include: {
+    //           variant: {
+    //             include: {
+    //               product: true,
+    //               color: true,
+    //               size: true,
+    //             },
+    //           },
+    //         },
+    //       },
+    //     },
+    //   },
+    //   method: true,
+    // },
   });
+
+  if (!payment) {
+    throw new Error("Payment not founded");
+  }
+
+  return payment;
 };
 
 const getPaymentByOrderId = async (orderId: number) => {
@@ -146,14 +152,37 @@ const deletePaymentById = async (id: number) => {
   });
 };
 
+const confirmCodPaymentReceived = async (id: number, adminId: number) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id },
+  });
+
+  if (!payment) {
+    throw new Error("Payment not found");
+  }
+
+  if (payment.status === "success") {
+    throw new Error("Payment already confirmed");
+  }
+
+  return await prisma.payment.update({
+    where: { id },
+    data: {
+      status: "success",
+      collectedByAdminId: adminId,
+    },
+  });
+};
+
 const paymentModel = {
   createPayment,
   getAllPayments,
   getPaymentById,
-  getPaymentByOrderId,
-  getPaymentsByStatus,
   updatePaymentById,
   deletePaymentById,
+  getPaymentByOrderId,
+  getPaymentsByStatus,
+  confirmCodPaymentReceived,
 };
 
 export default paymentModel;

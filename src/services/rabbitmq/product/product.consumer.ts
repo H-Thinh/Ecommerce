@@ -34,13 +34,61 @@ const startUpdateProductStatus = async () => {
       await productModel.updateProductStatusById(productId, newStatusId);
 
       channel.ack(msg);
-    } catch (err) {
-      console.error("Product consumer error:", err);
+    } catch (error) {
+      console.error("Product consumer error:", error);
       channel.nack(msg, false, false);
     }
   });
 };
 
-const productConsumer = { startUpdateProductStatus };
+const increaseStockProductById = async () => {
+  const channel = getChannel();
+
+  await channel.assertQueue(QUEUES.PRODUCT_STOCK_INCREASE, {
+    durable: true,
+  });
+
+  channel.consume(QUEUES.PRODUCT_STOCK_INCREASE, async (msg) => {
+    if (!msg) return;
+
+    try {
+      const { variantId, quantity } = JSON.parse(msg.content.toString());
+
+      await productModel.increaseStockProductById(variantId, quantity);
+
+      channel.ack(msg);
+    } catch (error) {
+      console.error("Product stock increase consumer error:", error);
+
+      channel.nack(msg, false, false); // ❌ reject và không requeue
+    }
+  });
+};
+
+const decreaseStockProductById = async () => {
+  const channel = getChannel();
+  await channel.assertQueue(QUEUES.PRODUCT_STOCK_DECREASE, { durable: true });
+
+  channel.consume(QUEUES.PRODUCT_STOCK_DECREASE, async (msg) => {
+    if (!msg) return;
+
+    try {
+      const { variantId, quantity } = JSON.parse(msg.content.toString());
+
+      await productModel.decreaseStockProductById(variantId, quantity);
+
+      channel.ack(msg);
+    } catch (error) {
+      console.error("Product consumer error:", error);
+      channel.nack(msg, false, false);
+    }
+  });
+};
+
+const productConsumer = {
+  startUpdateProductStatus,
+  decreaseStockProductById,
+  increaseStockProductById,
+};
 
 export default productConsumer;

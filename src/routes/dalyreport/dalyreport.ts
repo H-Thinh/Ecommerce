@@ -1,5 +1,5 @@
 import express from "express";
-import dailyReportController from "../../controller/dailyRepostController";
+import dailyReportController from "../../controllers/dailyRepostController";
 import verifyToken from "../../middlewares/verifyToken";
 
 const router = express.Router();

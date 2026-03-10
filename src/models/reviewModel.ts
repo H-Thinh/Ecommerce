@@ -15,9 +15,11 @@ const createReview = async (data: CreateReviewType) =>
     },
   });
 
-const getAllReviews = async () =>
-  await prisma.review.findMany({
+const getAllReviews = async () => {
+  const reviews = await prisma.review.findMany({
     include: {
+      product: { select: { name_product: true, image_url: true } },
+      orderItem: { select: { variant: { select: { image_url: true } } } },
       user: {
         select: {
           id: true,
@@ -36,6 +38,22 @@ const getAllReviews = async () =>
       createdAt: "desc",
     },
   });
+
+  return reviews.map((review) => {
+    return {
+      id: review.id,
+      rating: review.rating,
+      content: review.comment,
+      createdAt: review.createdAt,
+      status: review.status,
+      product: {
+        name: review.product.name_product,
+        imageProduct: review.orderItem?.variant.image_url,
+      },
+      user: { name: review.user.name, avatar: review.user.avatar },
+    };
+  });
+};
 
 const getReviewById = async (id: number) =>
   await prisma.review.findUnique({
@@ -124,15 +142,46 @@ const deleteReviewById = async (id: number) =>
     where: { id },
   });
 
+const moderateReview = async (
+  reviewId: number,
+  adminId: number,
+  status: "APPROVED" | "REJECTED",
+) => {
+  return prisma.review.update({
+    where: { id: reviewId },
+    data: {
+      status,
+      approved_by: adminId,
+      approved_at: new Date(),
+    },
+  });
+};
+
+const replyToReview = async (
+  reviewId: number,
+  adminId: number,
+  content: string,
+) => {
+  return prisma.review.update({
+    where: { id: reviewId },
+    data: {
+      shopRepliedBy: adminId,
+      shopReply: content,
+      shopRepliedAt: new Date(),
+    },
+  });
+};
+
 const reviewModel = {
   createReview,
   getAllReviews,
   getReviewById,
-  getReviewsByProductId,
-  getReviewsByUserId,
-  getPendingReviews,
+  moderateReview,
   updateReviewById,
   deleteReviewById,
+  getPendingReviews,
+  getReviewsByUserId,
+  getReviewsByProductId,
 };
 
 export default reviewModel;

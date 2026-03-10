@@ -24,3 +24,11 @@ export const uploadCoverCategory = multer({
 export const uploadImageReview = multer({
   storage: createCloudinaryStorage({ folder: "review" }),
 });
+
+export const uploadImageReturnOrder = multer({
+  storage: createCloudinaryStorage({ folder: "returnOrder" }),
+});
+
+export const uploadImageOrderRefund = multer({
+  storage: createCloudinaryStorage({ folder: "orderRefund" }),
+});

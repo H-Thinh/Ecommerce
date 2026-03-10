@@ -4,6 +4,7 @@ export interface CreateReviewType {
   comment?: string;
   orderItemId: number;
   images?: string;
+  productId:number
 }
 
 export interface UpdateReviewType {

@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE `province` ADD COLUMN `is_active` BOOLEAN NOT NULL DEFAULT true,
-    ADD COLUMN `region` ENUM('NORTH', 'CENTRAL', 'SOUTH') NOT NULL DEFAULT 'NORTH';

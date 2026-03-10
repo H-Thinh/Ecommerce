@@ -1,4 +1,5 @@
 import prisma from "../PrismaClient";
+import CreateProductType from "../types/ProductType";
 import ProductType, { ProductVariantType } from "../types/ProductType";
 
 const sortMap: Record<string, any> = {
@@ -18,7 +19,7 @@ const parseImageJson = (value?: string | null): string[] => {
   }
 };
 
-const createProduct = async (data: ProductType) =>
+const createProduct = async (data: CreateProductType) =>
   await prisma.product.create({
     data,
     include: {
@@ -215,7 +216,7 @@ const getProductBySlug = async (slug: string) => {
       description: true,
       image_url: true,
       price: true,
-
+      reviews: { select: { rating: true, user: true, comment: true } },
       variants: {
         select: {
           id: true,
@@ -264,21 +265,22 @@ const getProductBySlug = async (slug: string) => {
   const sizes = Array.from(sizeMap.values());
 
   // ---------- Rating summary ----------
-  // const ratingSummary = {
-  //   total: product.reviews.length,
-  //   average: 0,
-  //   stars: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number>,
-  // };
+  const ratingSummary = {
+    total: product.variants.length,
+    average: 0,
+    stars: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number>,
+  };
 
-  // let ratingSum = 0;
-  // product.reviews.forEach((r) => {
-  //   ratingSummary.stars[r.rating]++;
-  //   ratingSum += r.rating;
-  // });
+  let ratingSum = 0;
+  product.reviews.forEach((r) => {
+    ratingSummary.stars[r.rating]++;
+    ratingSum += r.rating;
+  });
 
-  // ratingSummary.average =
-  //   ratingSummary.total > 0    ? Number((ratingSum / ratingSummary.total).toFixed(1))
-  //     : 0;
+  ratingSummary.average =
+    ratingSummary.total > 0
+      ? Number((ratingSum / ratingSummary.total).toFixed(1))
+      : 0;
 
   // ---------- Return ----------
   return {
@@ -296,11 +298,12 @@ const getProductBySlug = async (slug: string) => {
     sale: product.sale,
     // rating_summary: ratingSummary,
 
-    // reviews: product.reviews.map(({ user, ...rest }) => ({
-    //   ...rest,
-    //   username: user.name,
-    //   avatar: user.avatar,
-    // })),
+    reviews: product.reviews.map(({ user, comment, ...rest }) => ({
+      ...rest,
+      username: user.name,
+      avatar: user.avatar,
+      content: comment,
+    })),
 
     countStock: product._count.variants,
   };
@@ -388,10 +391,46 @@ const getProductVariants = async (productId: number) => {
 };
 
 const getProductVariantsById = async (variantId: number) =>
-  await prisma.productVariant.findUnique({ where: { id: variantId } });
+  await prisma.productVariant.findUnique({
+    where: { id: variantId },
+  });
 
 const updateProductStatusById = async (id: number, statusId: number) => {
   await prisma.product.update({ where: { id }, data: { statusId } });
+};
+
+const decreaseStockProductById = async (
+  variantId: number,
+  quantity: number,
+) => {
+  return await prisma.productVariant.update({
+    where: { id: variantId },
+    data: {
+      stock: {
+        decrement: quantity,
+      },
+      sold: {
+        increment: quantity,
+      },
+    },
+  });
+};
+
+const increaseStockProductById = async (
+  variantId: number,
+  quantity: number,
+) => {
+  return await prisma.productVariant.update({
+    where: { id: variantId },
+    data: {
+      stock: {
+        increment: quantity,
+      },
+      sold: {
+        decrement: quantity,
+      },
+    },
+  });
 };
 
 const productModel = {
@@ -409,6 +448,8 @@ const productModel = {
   updateProductStatusById,
   updateProductVariantById,
   deleteProductVariantById,
+  decreaseStockProductById,
+  increaseStockProductById,
 };
 
 export default productModel;

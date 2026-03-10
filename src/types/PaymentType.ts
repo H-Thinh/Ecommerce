@@ -1,3 +1,5 @@
+import { Decimal } from "@prisma/client/runtime/library";
+
 type StatusPayment =
   | "pending"
   | "processing"
@@ -8,7 +10,7 @@ type StatusPayment =
 export default interface PaymentType {
   id: number;
   orderId: number;
-  amount: number;
+  amount: Decimal;
   status: StatusPayment;
   payment_method: number;
   transaction_reference?: string;

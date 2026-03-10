@@ -33,6 +33,11 @@ const getOrderStatusById = async (id: number) =>
     where: { id },
   });
 
+const getOrderStatusByCode = async (code: string) =>
+  await prisma.orderStatus.findUnique({
+    where: { code },
+  });
+
 const getOrderStatusByName = async (name: string) =>
   await prisma.orderStatus.findUnique({
     where: { name },
@@ -53,6 +58,7 @@ const orderStatusModel = {
   createOrderStatus,
   getAllOrderStatuses,
   getOrderStatusById,
+  getOrderStatusByCode,
   getOrderStatusByName,
   updateOrderStatusById,
   deleteOrderStatusById,
