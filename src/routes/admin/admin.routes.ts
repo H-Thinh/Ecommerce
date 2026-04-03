@@ -3,7 +3,9 @@ import { Router } from "express";
 import adminController from "../../controllers/adminController";
 
 import { checkRole } from "../../middlewares/checkRole";
+
 import verifyToken from "../../middlewares/verifyToken";
+
 import {
   uploadAvatarAccount,
   uploadAvatarUser,
@@ -11,7 +13,7 @@ import {
 
 const router = Router();
 
-router.get("/", adminController.getAccounts);
+router.get("/", verifyToken, adminController.getAccounts);
 
 router.post(
   "/",
@@ -21,7 +23,7 @@ router.post(
 );
 
 router.put(
-  "/:id",
+  "/account/:id",
   verifyToken,
   checkRole(["admin"]),
   uploadAvatarAccount.single("avatarAccount"),
@@ -29,13 +31,17 @@ router.put(
 );
 
 router.delete(
-  "/:id",
+  "/account/:id",
   verifyToken,
   checkRole(["admin"]),
   adminController.deleteAccountById,
 );
 
 //users
+router.get("/users/search", verifyToken, adminController.searchUser);
+
+router.get("/users/count", verifyToken, adminController.getTotalUsers);
+
 router.post(
   "/users/",
   verifyToken,

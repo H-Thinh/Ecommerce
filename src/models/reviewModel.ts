@@ -55,25 +55,44 @@ const getAllReviews = async () => {
   });
 };
 
-const getReviewById = async (id: number) =>
-  await prisma.review.findUnique({
+const getReviewById = async (id: number) => {
+  const review = await prisma.review.findUnique({
     where: { id },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          avatar: true,
-        },
-      },
-      reviewer: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+    select: {
+      id: true,
+      status: true,
+      images: true,
+      rating: true,
+      comment: true,
+      user: { select: { name: true, avatar: true } },
+      product: { select: { name_product: true } },
+      orderItem: { select: { variant: { select: { image_url: true } } } },
+      createdAt: true,
+      shopReply: true,
     },
   });
+
+  if (!review) {
+    throw new Error("Review not founded");
+  }
+
+  const images = JSON.parse(review.images || "[]");
+
+  return {
+    id: review.id,
+    status: review.status,
+    createdAt: review.createdAt,
+    images,
+    user: { name: review.user.name, avatar: review.user.avatar },
+    product: {
+      name: review.product.name_product,
+      imageProduct: review.orderItem?.variant.image_url,
+    },
+    content: review.comment,
+    rating: review.rating,
+    shopReply: review.shopReply,
+  };
+};
 
 const getReviewsByProductId = async (productId: number) =>
   await prisma.review.findMany({
@@ -162,6 +181,18 @@ const replyToReview = async (
   adminId: number,
   content: string,
 ) => {
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+  });
+
+  if (!review) {
+    throw new Error("Review not found");
+  }
+
+  if (review.shopReply) {
+    throw new Error("Review already replied");
+  }
+
   return prisma.review.update({
     where: { id: reviewId },
     data: {
@@ -176,6 +207,7 @@ const reviewModel = {
   createReview,
   getAllReviews,
   getReviewById,
+  replyToReview,
   moderateReview,
   updateReviewById,
   deleteReviewById,

@@ -4,18 +4,30 @@ import VoucherType from "../types/VoucherType";
 const createVoucher = async (data: VoucherType) =>
   await prisma.voucher.create({ data });
 
-const getVouchers = async () => {
+const getVouchers = async (search?: string) => {
+  const keyword = search?.trim();
+
   const vouchers = await prisma.voucher.findMany({
+    where: keyword
+      ? {
+          code: {
+            contains: keyword,
+          },
+        }
+      : {},
     include: {
       _count: {
         select: { orders: true },
       },
     },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
 
-  return vouchers.map((voucher) => ({
-    ...voucher,
-    usedCount: voucher._count.orders,
+  return vouchers.map(({ _count, ...rest }) => ({
+    ...rest,
+    usedCount: _count.orders,
   }));
 };
 

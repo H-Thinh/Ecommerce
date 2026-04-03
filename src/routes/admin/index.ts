@@ -16,10 +16,13 @@ import voucherRoutes from "./voucher.routes";
 import accountRoutes from "./account.routes";
 import productRoutes from "./product.routes";
 import paymentRoutes from "./payment.routes";
+import dailyReportRoutes from "./dailyReport";
 import categoryRoutes from "./category.routes";
 import pointRuleRoutes from "./pointRule.routes";
+import sizeGuideRoutes from "./sizeGuide.routes";
 import permissionRoutes from "./permission.routes";
 import orderStatusRoutes from "./orderStatus.routes";
+import measurementRoutes from "./measurement.routes";
 import paymentMethodRoutes from "./paymentMethod.routes";
 import productStatusRoutes from "./productStatus.routes";
 import permissionGroupRoutes from "./permissionGroup.routes";
@@ -61,9 +64,15 @@ router.use("/products", productRoutes);
 
 router.use("/categories", categoryRoutes);
 
+router.use("/size-guides", sizeGuideRoutes);
+
 router.use("/point-rules", pointRuleRoutes);
 
 router.use("/permissions", permissionRoutes);
+
+router.use("/measurements", measurementRoutes);
+
+router.use("/daily-reports", dailyReportRoutes);
 
 router.use("/order-statuses", orderStatusRoutes);
 

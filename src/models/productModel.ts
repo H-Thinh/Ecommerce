@@ -1,23 +1,7 @@
 import prisma from "../PrismaClient";
 import CreateProductType from "../types/ProductType";
 import ProductType, { ProductVariantType } from "../types/ProductType";
-
-const sortMap: Record<string, any> = {
-  newest: { createdAt: "desc" },
-  best_seller: { sold: "desc" },
-  price_desc: { price: "desc" },
-  price_asc: { price: "asc" },
-};
-const parseImageJson = (value?: string | null): string[] => {
-  if (!value) return [];
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
+import { parseImageJson } from "../utils/parseImageJson";
 
 const createProduct = async (data: CreateProductType) =>
   await prisma.product.create({
@@ -35,8 +19,17 @@ const createProduct = async (data: CreateProductType) =>
     },
   });
 
-const getAllProducts = async () => {
+const getAllProducts = async (search?: string) => {
+  const keyword = search?.trim();
+
   const products = await prisma.product.findMany({
+    where: keyword
+      ? {
+          name_product: {
+            contains: keyword,
+          },
+        }
+      : {},
     select: {
       name_product: true,
       id: true,
@@ -60,12 +53,20 @@ const getAllProducts = async () => {
 
   return products.map((product) => {
     const { name_product, category, status, variants, ...rest } = product;
+
     return {
       ...rest,
       name: name_product,
-      category: { id: category?.id, name: category?.name_category },
-      status: { id: status?.id, name: status?.name, hex: status?.hex },
-      sumStock: variants.reduce((sum, variant) => sum + variant.stock, 0),
+      category: {
+        id: category?.id,
+        name: category?.name_category,
+      },
+      status: {
+        id: status?.id,
+        name: status?.name,
+        hex: status?.hex,
+      },
+      sumStock: variants.reduce((sum, v) => sum + v.stock, 0),
     };
   });
 };
@@ -232,10 +233,9 @@ const getProductBySlug = async (slug: string) => {
   });
 
   if (!product) {
-    throw new Error("Không có sản phẩm này");
+    throw new Error("Không có sản phẩm này!");
   }
 
-  // ---------- Images ----------
   const productImages = parseImageJson(product.image_url);
 
   const variantImages = product.variants.flatMap((v) => v.image_url);
@@ -244,7 +244,6 @@ const getProductBySlug = async (slug: string) => {
     new Set([...productImages, ...variantImages]),
   );
 
-  // ---------- Colors (unique) ----------
   const colorMap = new Map<number, any>();
   product.variants.forEach((v) => {
     if (!colorMap.has(v.color?.id || 0)) {
@@ -254,7 +253,6 @@ const getProductBySlug = async (slug: string) => {
 
   const colors = Array.from(colorMap.values());
 
-  // ---------- Sizes (unique) ----------
   const sizeMap = new Map<number, any>();
   product.variants.forEach((v) => {
     if (!sizeMap.has(v.size?.id || 0)) {
@@ -264,9 +262,8 @@ const getProductBySlug = async (slug: string) => {
 
   const sizes = Array.from(sizeMap.values());
 
-  // ---------- Rating summary ----------
   const ratingSummary = {
-    total: product.variants.length,
+    total: product.reviews.length,
     average: 0,
     stars: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number>,
   };
@@ -296,7 +293,7 @@ const getProductBySlug = async (slug: string) => {
     sizes,
 
     sale: product.sale,
-    // rating_summary: ratingSummary,
+    ratingSummary,
 
     reviews: product.reviews.map(({ user, comment, ...rest }) => ({
       ...rest,
@@ -317,27 +314,104 @@ const getSaleProducts = async () => {
     select: {
       id: true,
       name_product: true,
-      sale: { select: { discount_type: true, discount_value: true } },
-      price: true,
+      description: true,
       image_url: true,
-      category: { select: { name_category: true } },
       slug: true,
+      price: true,
       createdAt: true,
+
+      category: { select: { name_category: true } },
+
+      variants: {
+        select: {
+          id: true,
+          image_url: true,
+          color: { select: { id: true, hex: true, name_color: true } },
+          size: { select: { id: true, Symbol: true } },
+          stock: true,
+        },
+      },
+
+      sale: {
+        select: {
+          discount_type: true,
+          discount_value: true,
+        },
+      },
     },
   });
 
   return products.map((pro) => {
-    const { name_product, ...rest } = pro;
+    // ===== COLORS =====
+    const colorMap = new Map<number, any>();
+    pro.variants.forEach((v) => {
+      if (v.color && !colorMap.has(v.color.id)) {
+        colorMap.set(v.color.id, v.color);
+      }
+    });
+    const colors = Array.from(colorMap.values());
+
+    // ===== SIZES =====
+    const sizeMap = new Map<number, any>();
+
+    pro.variants.forEach((v) => {
+      if (v.size && !sizeMap.has(v.size.id)) {
+        sizeMap.set(v.size.id, v.size);
+      }
+    });
+    const sizes = Array.from(sizeMap.values());
+
+    // ===== VARIANT MAP =====
+    const colorToSizes: Record<number, number[]> = {};
+    const sizeToColors: Record<number, number[]> = {};
+    const colorImageMap: Record<number, string> = {};
+
+    pro.variants.forEach((v) => {
+      const c = v.color?.id;
+      const s = v.size?.id;
+
+      if (!c || !s) return;
+
+      // color -> sizes
+      if (!colorToSizes[c]) colorToSizes[c] = [];
+      if (!colorToSizes[c].includes(s)) {
+        colorToSizes[c].push(s);
+      }
+
+      // size -> colors
+      if (!sizeToColors[s]) sizeToColors[s] = [];
+      if (!sizeToColors[s].includes(c)) {
+        sizeToColors[s].push(c);
+      }
+
+      // color -> image
+      if (!colorImageMap[c]) {
+        colorImageMap[c] = v.image_url || "";
+      }
+    });
+
+    const { name_product, category, image_url, ...rest } = pro;
+
+    const image = JSON.parse(image_url || "[]");
 
     return {
       ...rest,
       name: name_product,
-      category: { name: pro.category?.name_category },
+      image_url: image[0],
+      category: { name: category?.name_category },
+
+      colors,
+      sizes,
+
+      variantMap: {
+        colorToSizes,
+        sizeToColors,
+        colorImageMap,
+      },
     };
   });
 };
 
-// Product Variant methods
 const createProductVariant = async (data: ProductVariantType) =>
   await prisma.productVariant.create({
     data,
@@ -433,12 +507,69 @@ const increaseStockProductById = async (
   });
 };
 
+const createProductView = async (userId: number, productId: number) =>
+  await prisma.productView.upsert({
+    where: {
+      userId_productId: {
+        userId,
+        productId,
+      },
+    },
+    update: {
+      viewedAt: new Date(),
+      viewCount: { increment: 1 },
+    },
+    create: {
+      userId,
+      productId,
+    },
+  });
+
+const getAllProductViewByUserId = async (userId: number) =>
+  await prisma.productView.findMany({
+    where: { userId },
+    include: { product: true },
+    orderBy: { viewedAt: "desc" },
+    take: 20,
+  });
+
+const searchProduct = async (keyword: string) => {
+  const products = await prisma.product.findMany({
+    where: {
+      name_product: {
+        contains: keyword,
+      },
+    },
+    select: {
+      id: true,
+      name_product: true,
+      image_url: true,
+      price: true,
+      category: { select: { name_category: true } },
+      slug: true,
+    },
+  });
+
+  return products.map((product) => {
+    return {
+      id: product.id,
+      name: product.name_product,
+      image_url: parseImageJson(product.image_url),
+      price: product.price,
+      slug: product.slug,
+      categoryName: product.category?.name_category,
+    };
+  });
+};
+
 const productModel = {
   createProduct,
+  searchProduct,
   getAllProducts,
   getProductById,
   getSaleProducts,
   getProductBySlug,
+  createProductView,
   updateProductById,
   deleteProductById,
   getProductVariants,
@@ -450,6 +581,7 @@ const productModel = {
   deleteProductVariantById,
   decreaseStockProductById,
   increaseStockProductById,
+  getAllProductViewByUserId,
 };
 
 export default productModel;

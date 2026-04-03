@@ -2,7 +2,11 @@ import prisma from "../PrismaClient";
 import OrderType, { CreateOrderType } from "../types/OrderType";
 
 const createOrder = async (data: CreateOrderType) => {
+  const SHIPPING_DAYS = 3;
   const { item, ...orderData } = data;
+
+  const estimatedDate = new Date();
+  estimatedDate.setDate(estimatedDate.getDate() + SHIPPING_DAYS);
 
   return await prisma.$transaction(async (tx) => {
     // 1️⃣ Check và trừ stock trước
@@ -34,6 +38,7 @@ const createOrder = async (data: CreateOrderType) => {
     const order = await tx.order.create({
       data: {
         ...orderData,
+        estimated_delivery_at: estimatedDate,
         items: {
           create: item.map((orderItem) => ({
             variantId: orderItem.variantId,
@@ -552,17 +557,44 @@ const updateOrderStatusById = async (id: number) => {
       throw new Error("No next status found");
     }
 
+    const updateData: any = {
+      statusId: nextStatus.id,
+    };
+
+    if (nextStatus.code === "SHIPPING") {
+      updateData.shipped_at = new Date();
+    }
+
+    if (nextStatus.code === "DELIVERED") {
+      updateData.delivered_at = new Date();
+    }
+
     return await tx.order.update({
       where: { id },
-      data: { statusId: nextStatus.id },
+      data: updateData,
     });
   });
+};
+
+const getTotalOrders = async (startDate: Date, endDate: Date) => {
+  const result = await prisma.order.aggregate({
+    _count: true,
+    where: {
+      createdAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+  });
+
+  return result._count;
 };
 
 const orderModel = {
   createOrder,
   getAllOrders,
   getOrderById,
+  getTotalOrders,
   updateOrderById,
   deleteOrderById,
   getOrdersByUserId,

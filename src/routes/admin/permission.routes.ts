@@ -9,7 +9,7 @@ const router = Router();
 
 router.post(
   "/",
-  // verifyToken,
+  verifyToken,
   // checkRole(["admin"]),
   permissionController.createPermission,
 );
@@ -30,14 +30,14 @@ router.delete(
 
 router.get(
   "/",
-  // verifyToken,
+  verifyToken,
   // checkRole(["admin"]),
   permissionController.getPermissions,
 );
 
 router.get(
   "/:permissionId",
-  // verifyToken,
+  verifyToken,
   // checkRole(["admin"]),
   permissionController.getPermissionById,
 );

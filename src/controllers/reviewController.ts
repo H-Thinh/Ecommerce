@@ -238,16 +238,87 @@ const deleteReviewById = async (req: Request, res: Response) => {
   }
 };
 
+const moderateReview = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { adminId, status } = req.body || {};
+
+    if (!id || !adminId || !status) {
+      return res.status(400).json({
+        message: "Missing required fields",
+      });
+    }
+
+    if (!["APPROVED", "REJECTED"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status",
+      });
+    }
+
+    const review = await reviewModel.moderateReview(
+      Number(id),
+      Number(adminId),
+      status,
+    );
+
+    return res.status(200).json({
+      message:
+        review.status === "APPROVED"
+          ? "Chấp nhận review này"
+          : "Từ chối review này",
+      data: review,
+    });
+  } catch (error: any) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+const replyToReview = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { adminId, content } = req.body || {};
+
+    if (!id || !adminId || !content) {
+      return res.status(400).json({
+        message: "Missing required fields",
+      });
+    }
+
+    const review = await reviewModel.replyToReview(
+      Number(id),
+      Number(adminId),
+      content,
+    );
+
+    return res.status(200).json({
+      message: "Trả lời đánh giá thành công",
+      data: review,
+    });
+  } catch (error: any) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
 const reviewController = {
+  getMyReviews,
   createReview,
+  replyToReview,
   getAllReviews,
   getReviewById,
-  getReviewsByProductId,
-  getMyReviews,
-  getPendingReviews,
-  updateReviewById,
   approveReview,
+  moderateReview,
+  updateReviewById,
   deleteReviewById,
+  getPendingReviews,
+  getReviewsByProductId,
 };
 
 export default reviewController;

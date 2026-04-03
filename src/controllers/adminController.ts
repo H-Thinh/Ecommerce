@@ -155,11 +155,12 @@ const getAccounts = async (req: Request, res: Response) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 4;
+    const search = req.query.search as string;
 
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
 
-    const accounts = await accountModel.getAccounts();
+    const accounts = await accountModel.getAccounts(search);
 
     if (!accounts) {
       return res.status(400).json({
@@ -370,16 +371,86 @@ const deleteUserById = async (req: Request, res: Response) => {
   }
 };
 
+const searchUser = async (req: Request, res: Response) => {
+  try {
+    const nameUser = req.query.nameUser as string;
+
+    if (!nameUser) {
+      return res.status(400).json({
+        message: "Không có tên người dùng cần tìm",
+        type: "error",
+      });
+    }
+
+    const users = await userModel.searchUser(nameUser);
+
+    return res.status(200).json({
+      message: "Tìm kiếm thành công",
+      type: "success",
+      data: users,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Lỗi server",
+      type: "error",
+    });
+  }
+};
+
+const getTotalUsers = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate, month, year } = req.query;
+
+    let start: Date;
+    let end: Date;
+
+    if (startDate && endDate) {
+      start = new Date(startDate as string);
+      end = new Date(endDate as string);
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (month && year) {
+      const m = Number(month) - 1;
+      const y = Number(year);
+
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+    } else {
+      const now = new Date();
+
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const users = await userModel.getTotalUsers(start, end);
+
+    res.json({
+      message: "Lấy số lượng user thành công",
+      data: users,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
 const adminController = {
-  getAccounts,
-  createAccount,
-  updateAccountById,
-  deleteAccountById,
   createUser,
-  getAllUsers,
+  searchUser,
+  getAccounts,
   getUserById,
+  getAllUsers,
+  getTotalUsers,
+  createAccount,
   updateUserById,
   deleteUserById,
+  updateAccountById,
+  deleteAccountById,
 };
 
 export default adminController;

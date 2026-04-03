@@ -143,10 +143,45 @@ const updateUserPoints = async (id: number, points: number) =>
 const checkNameExcludeId = async (name: string, id: number) =>
   await prisma.user.findFirst({ where: { name, NOT: { id } } });
 
+const searchUser = async (nameUser: string) =>
+  await prisma.user.findMany({
+    where: { name: { contains: nameUser } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      password: true,
+      phone: true,
+      address: true,
+      points: true,
+      avatar: true,
+      is_active: true,
+      is_verifyEmail: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+const getTotalUsers = async (startDate: Date, endDate: Date) => {
+  const result = await prisma.user.aggregate({
+    _count: true,
+    where: {
+      createdAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+  });
+
+  return result._count;
+};
+
 const userModel = {
   createUser,
+  searchUser,
   getAllUsers,
   getUserById,
+  getTotalUsers,
   getUserByName,
   getUserByEmail,
   updateUserById,

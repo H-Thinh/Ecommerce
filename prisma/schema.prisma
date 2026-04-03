@@ -132,6 +132,7 @@ model User {
   orders           Order[]
   reviews          Review[]
   userBankAccounts UserBankAccount[]
+  productViews     ProductView[]
 }
 
 model PointHistory {
@@ -165,8 +166,9 @@ model Category {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  gender   Gender?   @relation(fields: [genderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  products Product[]
+  gender     Gender?     @relation(fields: [genderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  products   Product[]
+  sizeGuides SizeGuide[]
 }
 
 model ProductStatus {
@@ -212,8 +214,9 @@ model Product {
   sale     Sale?          @relation(fields: [saleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   status   ProductStatus? @relation(fields: [statusId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  variants ProductVariant[]
-  reviews  Review[]
+  variants     ProductVariant[]
+  reviews      Review[]
+  productViews ProductView[]
 }
 
 model Color {
@@ -231,7 +234,8 @@ model Size {
   name_size String @unique
   Symbol    String @unique
 
-  variants ProductVariant[]
+  variants   ProductVariant[]
+  sizeGuides SizeGuide[]
 }
 
 model ProductVariant {
@@ -345,8 +349,12 @@ model Order {
   point_discount_amount Decimal @default("0") @db.Decimal(12, 2)
   payment_method        Int
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  estimated_delivery_at DateTime?
+  delivered_at          DateTime?
+  shipped_at            DateTime?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   voucher       Voucher?      @relation(fields: [voucherId], references: [id])
@@ -551,4 +559,52 @@ model UserBankAccount {
 
   @@unique([userId, is_primary])
   @@index([userId])
+}
+
+model SizeGuide {
+  id Int @id @default(autoincrement())
+
+  sizeId     Int
+  categoryId Int
+
+  size     Size     @relation(fields: [sizeId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  measurements SizeMeasurement[]
+}
+
+model ProductView {
+  id Int @id @default(autoincrement())
+
+  userId    Int
+  productId Int
+
+  viewedAt  DateTime @updatedAt
+  viewCount Int      @default(1)
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model MeasurementType {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  unit String
+
+  measurements SizeMeasurement[]
+}
+
+model SizeMeasurement {
+  id Int @id @default(autoincrement())
+
+  sizeGuideId       Int
+  measurementTypeId Int
+
+  min Int
+  max Int
+
+  sizeGuide       SizeGuide       @relation(fields: [sizeGuideId], references: [id])
+  measurementType MeasurementType @relation(fields: [measurementTypeId], references: [id])
 }

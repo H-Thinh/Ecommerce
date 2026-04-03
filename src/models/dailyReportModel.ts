@@ -58,14 +58,21 @@ const generateYesterdayReport = async () => {
     },
   });
 };
-const getDailyReports = async () => await prisma.dailyReport.findMany();
+
+export const getDailyReportsByRange = async (start: Date, end: Date) => {
+  return prisma.dailyReport.findMany({
+    where: {
+      report_date: { gte: start, lte: end },
+    },
+  });
+};
 
 const deleteDailyReportById = async (id: number) =>
   await prisma.dailyReport.delete({ where: { id } });
 
 const dailyReportModel = {
-  getDailyReports,
   deleteDailyReportById,
+  getDailyReportsByRange,
   generateYesterdayReport,
 };
 

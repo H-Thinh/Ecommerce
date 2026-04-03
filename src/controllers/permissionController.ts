@@ -34,7 +34,10 @@ const createPermission = async (req: Request, res: Response) => {
 
 const getPermissions = async (req: Request, res: Response) => {
   try {
-    const permissions = await permissionModel.getPermissions();
+    const search = req.query.search as string;
+
+    const permissions = await permissionModel.getPermissions(search);
+
     res.status(200).json({
       message: "Lấy dữ liệu các quyền thành công",
       data: permissions,
@@ -42,7 +45,10 @@ const getPermissions = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server", type: "error" });
+    res.status(500).json({
+      message: "Lỗi server",
+      type: "error",
+    });
   }
 };
 
@@ -50,9 +56,8 @@ const updatePermissionById = async (req: Request, res: Response) => {
   try {
     const permissionId = Number(req.params.permissionId);
 
-    const permissionExist = await permissionModel.getPermissionById(
-      permissionId
-    );
+    const permissionExist =
+      await permissionModel.getPermissionById(permissionId);
 
     if (!permissionExist) {
       return res
@@ -65,7 +70,7 @@ const updatePermissionById = async (req: Request, res: Response) => {
     if (name) {
       const nameExist = await permissionModel.checkNameExcludeId(
         name,
-        permissionId
+        permissionId,
       );
 
       if (nameExist) {
@@ -86,7 +91,7 @@ const updatePermissionById = async (req: Request, res: Response) => {
 
     const permission = await permissionModel.updatePermissionById(
       permissionId,
-      dataUpdate
+      dataUpdate,
     );
 
     res.status(200).json({
@@ -104,9 +109,8 @@ const deletePermissionById = async (req: Request, res: Response) => {
   try {
     const permissionId = Number(req.params.permissionId);
 
-    const permissionExist = await permissionModel.getPermissionById(
-      permissionId
-    );
+    const permissionExist =
+      await permissionModel.getPermissionById(permissionId);
 
     if (!permissionExist) {
       return res

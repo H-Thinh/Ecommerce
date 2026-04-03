@@ -4,7 +4,7 @@ import verifyToken from "../../middlewares/verifyToken";
 
 const router = Router();
 
-router.get("/", verifyToken, categoryController.getCategorys);
+router.get("/", verifyToken, categoryController.getCategories);
 
 router.get("/:slug/products", categoryController.getProductBySlugCategory);
 

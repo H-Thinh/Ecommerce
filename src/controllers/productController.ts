@@ -1,9 +1,14 @@
 import { Request, Response } from "express";
+
 import productModel from "../models/productModel";
+
 import ProductType, { ProductVariantType } from "../types/ProductType";
+
 import productProducer from "../services/rabbitmq/product/product.producer";
 
 import slugify from "slugify";
+
+import { AuthenticatedRequest } from "../types/express";
 
 const createProduct = async (req: Request, res: Response) => {
   try {
@@ -36,12 +41,21 @@ const createProduct = async (req: Request, res: Response) => {
 
 const getAllProducts = async (req: Request, res: Response) => {
   try {
-    const products = await productModel.getAllProducts();
+    const search = (req.query.search as string)?.trim();
 
-    res.status(200).json({ message: "Lấy dữ liệu thành công", data: products });
+    const products = await productModel.getAllProducts(search);
+
+    return res.status(200).json({
+      type: "success",
+      message: "Lấy dữ liệu thành công",
+      data: products,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server" });
+    return res.status(500).json({
+      message: "Lỗi server",
+      type: "error",
+    });
   }
 };
 
@@ -310,12 +324,72 @@ const deleteProductVariantById = async (req: Request, res: Response) => {
   }
 };
 
+const createProductView = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Bạn chưa đăng nhập",
+        type: "error",
+      });
+    }
+
+    const productId = Number(req.params.productId);
+
+    if (!productId || isNaN(productId)) {
+      return res.status(400).json({
+        message: "productId không hợp lệ",
+        type: "error",
+      });
+    }
+
+    const productView = await productModel.createProductView(userId, productId);
+
+    return res.status(200).json({
+      message: "Đã ghi nhận lượt xem",
+      data: productView,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Lỗi server",
+    });
+  }
+};
+
+const searchProduct = async (req: Request, res: Response) => {
+  try {
+    const keyword = req.query.keyword as string;
+
+    if (!keyword || keyword.trim() === "") {
+      return res.status(400).json({
+        message: "Thiếu từ khóa tìm kiếm",
+      });
+    }
+
+    const products = await productModel.searchProduct(keyword);
+
+    return res.status(200).json({
+      message: "Tìm kiếm thành công",
+      data: products,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Lỗi server",
+    });
+  }
+};
+
 const productController = {
+  searchProduct,
   createProduct,
   getAllProducts,
   getProductById,
   getSaleProducts,
   getProductBySlug,
+  createProductView,
   updateProductById,
   deleteProductById,
   getProductVariants,

@@ -9,7 +9,7 @@ const router = Router();
 
 router.get("/", verifyToken, checkRole(["admin"]), saleController.getAllSales);
 
-router.get("/active", saleController.getActiveSales);
+router.get("/active", verifyToken, saleController.getActiveSales);
 
 router.get(
   "/:id",

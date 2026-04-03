@@ -7,8 +7,13 @@ const createAccount = async (data: AccountType) =>
 const updateAccountById = async (id: number, data: Partial<AccountType>) =>
   await prisma.account.update({ where: { id }, data });
 
-const getAccounts = async () => {
-  const account = await prisma.account.findMany({
+const getAccounts = async (search?: string) => {
+  const accounts = await prisma.account.findMany({
+    where: search
+      ? {
+          name: { contains: search },
+        }
+      : {},
     select: {
       id: true,
       email: true,
@@ -22,10 +27,8 @@ const getAccounts = async () => {
     },
   });
 
-  if (!account) return null;
-
-  return account.map((ac) => {
-    const { role, ...rest } = ac;
+  return accounts.map((account) => {
+    const { role, ...rest } = account;
     return { ...rest, nameRole: role.name_role };
   });
 };

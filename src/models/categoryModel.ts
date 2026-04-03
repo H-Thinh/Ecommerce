@@ -11,13 +11,22 @@ const updateCategoryById = async (id: number, data: Partial<CategoryType>) =>
 const deleteCategoryById = async (id: number) =>
   await prisma.category.delete({ where: { id } });
 
-const getCategorys = async () => {
-  const categorys = await prisma.category.findMany();
-
-  return categorys.map((category) => {
-    const { name_category, image_category, ...rest } = category;
-    return { ...rest, name: name_category, imageCategory: image_category };
+const getCategories = async (search?: string) => {
+  const categories = await prisma.category.findMany({
+    where: search
+      ? {
+          name_category: {
+            contains: search,
+          },
+        }
+      : {},
   });
+
+  return categories.map(({ name_category, image_category, ...rest }) => ({
+    ...rest,
+    name: name_category,
+    imageCategory: image_category,
+  }));
 };
 
 const getCategoryById = async (id: number) =>
@@ -170,9 +179,20 @@ const getProductBySlugCategory = async (slug: string) => {
   });
 };
 
+const searchCategory = async (nameCategory: string) => {
+  const categories = await prisma.category.findMany({
+    where: { name_category: { contains: nameCategory } },
+  });
+
+  return categories.map((category) => {
+    const { name_category, image_category, ...rest } = category;
+    return { ...rest, name: name_category, imageCategory: image_category };
+  });
+};
 const categoryModel = {
   checkName,
-  getCategorys,
+  getCategories,
+  searchCategory,
   createCategory,
   getCategoryById,
   updateCategoryById,

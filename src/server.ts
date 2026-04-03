@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import express, { Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -5,13 +9,10 @@ import http from "http";
 import { Server } from "socket.io";
 // import initSocket from "./socket/index";
 import apiRouter from "./routes/api";
-import dotenv from "dotenv";
 
 import { initRabbitMQ } from "./services/rabbitmq/connection";
 import productConsumer from "./services/rabbitmq/product/product.consumer";
 import { initCronJobs } from "./cron";
-
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
@@ -25,7 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: ["http://localhost:3000", "http://localhost:5173"],
     credentials: true,
   }),
 );

@@ -1,4 +1,5 @@
 import prisma from "../PrismaClient";
+
 import SizeType from "../types/SizeType";
 
 const createSize = async (data: SizeType) => await prisma.size.create({ data });

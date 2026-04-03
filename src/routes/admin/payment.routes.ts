@@ -7,6 +7,8 @@ import { checkRole } from "../../middlewares/checkRole";
 
 const router = Router();
 
+router.get("/revenue", verifyToken, paymentController.getRevenue);
+
 router.patch(
   "/:id/cod-confirm/:adminId",
   verifyToken,

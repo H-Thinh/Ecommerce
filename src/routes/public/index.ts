@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import aiRoutes from "./ai.routes";
 import authRoutes from "./auth.routes";
 import sizeRoutes from "./size.routes";
 import cartRoutes from "./cart.routes";
@@ -13,9 +14,12 @@ import voucherRoutes from "./voucher.routes";
 import productRoutes from "./product.routes";
 import categoryRoutes from "./category.routes";
 import orderStatusRoutes from "./orderStatus.routes";
+import bankAccountRoutes from "./userBankAccount.routes";
 import paymentMethodRoutes from "./paymentMethod.routes";
 
 const router = Router();
+
+router.use("/ai", aiRoutes);
 
 router.use("/auths", authRoutes);
 
@@ -40,6 +44,8 @@ router.use("/vouchers", voucherRoutes);
 router.use("/products", productRoutes);
 
 router.use("/categories", categoryRoutes);
+
+router.use("/bank-accounts", bankAccountRoutes);
 
 router.use("/order-statuses", orderStatusRoutes);
 

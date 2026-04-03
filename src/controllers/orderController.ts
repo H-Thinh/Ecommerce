@@ -457,11 +457,53 @@ const updateOrderStatusById = async (req: Request, res: Response) => {
   }
 };
 
+const getTotalOrders = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate, month, year } = req.query;
+
+    let start: Date;
+    let end: Date;
+
+    if (startDate && endDate) {
+      start = new Date(startDate as string);
+      end = new Date(endDate as string);
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (month && year) {
+      const m = Number(month) - 1;
+      const y = Number(year);
+
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+    } else {
+      const now = new Date();
+
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const orders = await orderModel.getTotalOrders(start, end);
+
+    res.json({
+      message: "Lấy số lượng đơn hàng thành công",
+      data: orders,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
 const orderController = {
   getMyOrders,
   createOrder,
   getAllOrders,
   getOrderById,
+  getTotalOrders,
   updateOrderById,
   deleteOrderById,
   cancelOrderByAdmin,

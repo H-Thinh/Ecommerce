@@ -7,6 +7,8 @@ import paymentMethodController from "../../controllers/paymentMethodController";
 
 const router = Router();
 
+router.get("/", verifyToken, paymentMethodController.getAllPaymentMethods);
+
 router.post(
   "/",
   verifyToken,

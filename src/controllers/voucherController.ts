@@ -47,11 +47,20 @@ const createVoucher = async (req: Request, res: Response) => {
 
 const getVouchers = async (req: Request, res: Response) => {
   try {
-    const vouchers = await voucherModel.getVouchers();
-    res.status(200).json({ message: "Lấy dữ liệu thành công", data: vouchers });
+    const search = (req.query.search as string)?.trim();
+
+    const vouchers = await voucherModel.getVouchers(search);
+
+    return res.status(200).json({
+      message: "Lấy dữ liệu thành công",
+      data: vouchers,
+    });
+
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Lỗi server" });
+    return res.status(500).json({
+      message: "Lỗi server",
+    });
   }
 };
 

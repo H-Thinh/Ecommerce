@@ -1,17 +1,21 @@
 import { Router } from "express";
-import verifyToken from "../../middlewares/verifyToken";
+
 import categoryController from "../../controllers/categoryController";
+
+import verifyToken from "../../middlewares/verifyToken";
+import { checkRole } from "../../middlewares/checkRole";
 import { uploadCoverCategory } from "../../middlewares/upload";
 
 const router = Router();
 
-router.get("/", verifyToken, categoryController.getCategorys);
+router.get("/", verifyToken, categoryController.getCategories);
 
 router.get("/:categoryId", verifyToken, categoryController.getCategoryById);
 
 router.post(
   "/",
   verifyToken,
+  checkRole(["admin"]),
   uploadCoverCategory.single("imageCategory"),
   categoryController.createCategory,
 );
@@ -19,15 +23,15 @@ router.post(
 router.put(
   "/:categoryId",
   verifyToken,
+  checkRole(["admin"]),
   uploadCoverCategory.single("imageCategory"),
   categoryController.updateCategoryById,
 );
 
-// router.post("/test-no-upload", categoryController.createCategory);
-
 router.delete(
   "/:categoryId",
   verifyToken,
+  checkRole(["admin"]),
   categoryController.deleteCategoryById,
 );
 

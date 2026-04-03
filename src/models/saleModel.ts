@@ -7,8 +7,15 @@ const createSale = async (data: SaleType) => {
   });
 };
 
-const getAllSales = async () => {
+const getAllSales = async (search?: string) => {
   const sales = await prisma.sale.findMany({
+    where: search
+      ? {
+          name_sale: {
+            contains: search,
+          },
+        }
+      : {},
     include: {
       _count: {
         select: { products: true },
@@ -19,10 +26,10 @@ const getAllSales = async () => {
     },
   });
 
-  return sales.map((sale) => {
-    const { name_sale, ...rest } = sale;
-    return { ...rest, name: name_sale };
-  });
+  return sales.map(({ name_sale, ...rest }) => ({
+    ...rest,
+    name: name_sale,
+  }));
 };
 
 const getActiveSales = async () => {

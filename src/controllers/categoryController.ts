@@ -47,23 +47,22 @@ const createCategory = async (req: Request, res: Response) => {
   }
 };
 
-const getCategorys = async (req: Request, res: Response) => {
+const getCategories = async (req: Request, res: Response) => {
   try {
-    const category = await categoryModel.getCategorys();
+    const search = (req.query.search as string)?.trim();
 
-    res.status(200).json({
+    const categories = await categoryModel.getCategories(search);
+
+    return res.status(200).json({
       message: "Lấy dữ liệu category thành công",
-      data: category,
+      data: categories,
       type: "success",
     });
   } catch (error: any) {
-    res.status(500).json({
-      message: error?.message || "Lỗi server",
-      error: {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack,
-      },
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Lỗi server",
       type: "error",
     });
   }
@@ -143,7 +142,7 @@ const deleteCategoryById = async (req: Request, res: Response) => {
 
     await categoryModel.getCategoryById(categoryId);
 
-    const remainingCategorys = await categoryModel.getCategorys();
+    const remainingCategorys = await categoryModel.getCategories();
 
     res.status(200).json({
       message: "Xóa thành công",
@@ -202,8 +201,36 @@ const getProductBySlugCategory = async (req: Request, res: Response) => {
   }
 };
 
+const searchCategory = async (req: Request, res: Response) => {
+  try {
+    const nameCategory = (req.query.nameCategory as string)?.trim();
+
+    if (!nameCategory) {
+      return res.status(400).json({
+        message: "Tên thể loại không hợp lệ",
+        type: "error",
+      });
+    }
+
+    const categories = await categoryModel.searchCategory(nameCategory);
+
+    return res.status(200).json({
+      message: "Tìm kiếm thành công",
+      type: "success",
+      data: categories,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Lỗi server",
+      type: "error",
+    });
+  }
+};
+
 const categoryController = {
-  getCategorys,
+  getCategories,
+  searchCategory,
   createCategory,
   getCategoryById,
   updateCategoryById,

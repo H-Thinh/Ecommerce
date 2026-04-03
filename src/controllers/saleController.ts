@@ -45,13 +45,19 @@ const createSale = async (req: Request, res: Response) => {
 
 const getAllSales = async (req: Request, res: Response) => {
   try {
-    const sales = await saleModel.getAllSales();
-    return res
-      .status(200)
-      .json({ message: "Lấy danh sách khuyến mãi thành công", data: sales });
+    const search = (req.query.search as string)?.trim();
+
+    const sales = await saleModel.getAllSales(search);
+
+    return res.status(200).json({
+      message: "Lấy danh sách khuyến mãi thành công",
+      data: sales,
+    });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Lỗi server" });
+    return res.status(500).json({
+      message: "Lỗi server",
+    });
   }
 };
 

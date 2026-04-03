@@ -33,4 +33,18 @@ router.delete(
   reviewController.deleteReviewById,
 );
 
+router.patch(
+  "/:id/moderate",
+  verifyToken,
+  checkRole(["admin"]),
+  reviewController.moderateReview,
+);
+
+router.patch(
+  "/:id/reply",
+  verifyToken,
+  checkRole(["admin"]),
+  reviewController.replyToReview,
+);
+
 export default router;

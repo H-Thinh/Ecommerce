@@ -6,4 +6,8 @@ const router = express.Router();
 
 router.post("/", verifyToken, dailyReportController.generateYesterdayReport);
 
+router.get("/day", verifyToken, dailyReportController.getDailyReportsByDay);
+
+router.get("/month", verifyToken, dailyReportController.getDailyReportsByMonth);
+
 export default router;

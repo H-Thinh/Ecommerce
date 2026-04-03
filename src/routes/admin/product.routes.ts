@@ -11,6 +11,8 @@ import { checkRole } from "../../middlewares/checkRole";
 
 const router = Router();
 
+router.get("/search", verifyToken, productController.searchProduct);
+
 router.get("/", productController.getAllProducts);
 
 router.get("/:productId", verifyToken, productController.getProductById);

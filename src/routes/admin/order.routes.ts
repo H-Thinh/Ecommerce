@@ -7,6 +7,8 @@ import { checkRole } from "../../middlewares/checkRole";
 
 const router = Router();
 
+router.get("/count", verifyToken, orderController.getTotalOrders);
+
 router.get("/:orderId", verifyToken, orderController.getOrderById);
 
 router.patch(

@@ -13,13 +13,23 @@ const createPermission = async (data: PermissionType) =>
 
 const updatePermissionById = async (
   id: number,
-  data: Partial<PermissionType>
+  data: Partial<PermissionType>,
 ) => await prisma.permission.update({ where: { id }, data });
 
 const deletePermissionById = async (id: number) =>
   await prisma.permission.delete({ where: { id } });
 
-const getPermissions = async () => await prisma.permission.findMany();
+const getPermissions = async (search?: string) => {
+  return await prisma.permission.findMany({
+    where: search
+      ? {
+          label: {
+            contains: search,
+          },
+        }
+      : {},
+  });
+};
 
 const getPermissionById = async (id: number) =>
   await prisma.permission.findUnique({

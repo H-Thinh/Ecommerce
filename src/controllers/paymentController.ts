@@ -213,59 +213,6 @@ const getPaymentById = async (req: Request, res: Response) => {
   }
 };
 
-// const refundVnpay = async ({
-//   txnRef,
-//   amount,
-//   transactionNo,
-//   transactionDate,
-// }) => {
-
-//   const requestId = Date.now().toString();
-
-//   const data: any = {
-//     vnp_RequestId: requestId,
-//     vnp_Version: "2.1.0",
-//     vnp_Command: "refund",
-//     vnp_TmnCode: tmnCode,
-//     vnp_TransactionType: "02", // hoàn toàn bộ
-//     vnp_TxnRef: txnRef,
-//     vnp_Amount: amount * 100,
-//     vnp_TransactionNo: transactionNo,
-//     vnp_TransactionDate: transactionDate,
-//     vnp_CreateBy: "system",
-//     vnp_CreateDate: new Date()
-//       .toISOString()
-//       .replace(/[-:TZ.]/g, "")
-//       .slice(0, 14),
-//     vnp_IpAddr: "127.0.0.1",
-//   };
-
-//   const sortedData = Object.keys(data)
-//     .sort()
-//     .reduce((result, key) => {
-//       result[key] = data[key];
-//       return result;
-//     }, {});
-
-//   const signData = Object.entries(sortedData)
-//     .map(([key, value]) => `${key}=${value}`)
-//     .join("&");
-
-//   const secureHash = crypto
-//     .createHmac("sha512", secretKey)
-//     .update(signData)
-//     .digest("hex");
-
-//   data["vnp_SecureHash"] = secureHash;
-
-//   const response = await axios.post(
-//     "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction",
-//     data,
-//   );
-
-//   return response.data;
-// };
-
 const confirmCodPaymentReceived = async (req: Request, res: Response) => {
   try {
     const { id, adminId } = req.params;
@@ -294,7 +241,48 @@ const confirmCodPaymentReceived = async (req: Request, res: Response) => {
   }
 };
 
+const getRevenue = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate, year, month } = req.query;
+
+    let start: Date;
+    let end: Date;
+
+    if (startDate && endDate) {
+      start = new Date(startDate as string);
+      end = new Date(endDate as string);
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (year && month) {
+      const y = Number(year);
+      const m = Number(month) - 1;
+
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+    } else {
+      const now = new Date();
+
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const revenue = await paymentModel.getRevenueByDate(start, end);
+
+    res.json({
+      message: "Lấy doanh thu thành công",
+      data: revenue,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
 const paymentController = {
+  getRevenue,
   resultVnPay,
   createPayment,
   getPaymentById,

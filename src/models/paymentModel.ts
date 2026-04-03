@@ -174,10 +174,28 @@ const confirmCodPaymentReceived = async (id: number, adminId: number) => {
   });
 };
 
+const getRevenueByDate = async (startOfDay: Date, endOfDay: Date) => {
+  const result = await prisma.payment.aggregate({
+    _sum: {
+      amount: true,
+    },
+    where: {
+      status: "success",
+      createdAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+  });
+
+  return result._sum.amount || 0;
+};
+
 const paymentModel = {
   createPayment,
   getAllPayments,
   getPaymentById,
+  getRevenueByDate,
   updatePaymentById,
   deletePaymentById,
   getPaymentByOrderId,
