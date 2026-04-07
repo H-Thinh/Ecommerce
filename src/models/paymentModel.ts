@@ -125,7 +125,10 @@ const getPaymentsByStatus = async (
 const updatePaymentById = async (id: number, data: UpdatePaymentType) => {
   return await prisma.payment.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      received_at: new Date(),
+    },
     include: {
       order: {
         select: {
@@ -170,20 +173,21 @@ const confirmCodPaymentReceived = async (id: number, adminId: number) => {
     data: {
       status: "success",
       collectedByAdminId: adminId,
+      received_at: new Date(),
     },
   });
 };
 
-const getRevenueByDate = async (startOfDay: Date, endOfDay: Date) => {
+const getRevenueByDate = async (startDate: Date, endDate: Date) => {
   const result = await prisma.payment.aggregate({
     _sum: {
       amount: true,
     },
     where: {
       status: "success",
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
+      received_at: {
+        gte: startDate,
+        lte: endDate,
       },
     },
   });

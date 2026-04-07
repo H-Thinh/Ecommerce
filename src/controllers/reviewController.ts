@@ -1,12 +1,15 @@
 import { Request, Response } from "express";
+
 import reviewModel from "../models/reviewModel";
+
 import {
   reviewValidation,
   updateReviewValidation,
 } from "../validation/reviewValidation";
+
 import { CreateReviewType, UpdateReviewType } from "../types/ReviewType";
+
 import { AuthenticatedRequest } from "../types/express";
-import prisma from "../PrismaClient";
 
 const createReview = async (req: Request, res: Response) => {
   try {
@@ -18,41 +21,49 @@ const createReview = async (req: Request, res: Response) => {
 
     const { rating, comment, orderItemId, productId } = req.body || {};
 
-    const files = req.files as Express.Multer.File[];
-
-    const image_urls = files.map((file) => file.path);
-
-    const reviewData: CreateReviewType = {
-      userId,
-      rating: parseInt(rating),
-      comment,
-      orderItemId: parseInt(orderItemId),
-      productId: parseInt(productId),
-      images: JSON.stringify(image_urls),
-    };
-
-    const errors = reviewValidation(reviewData);
-    if (Object.keys(errors).length > 0) {
-      return res.status(400).json({ message: "Dữ liệu không hợp lệ", errors });
+    if (!rating || !orderItemId || !productId) {
+      return res.status(400).json({ message: "Dữ liệu không đầy đủ" });
     }
 
-    // Check if user already reviewed this product
-    const existingReview = await prisma.review.findFirst({
-      where: {
-        userId,
-      },
-    });
+    const files = req.files as Express.Multer.File[];
+    if (files && files.length > 0) {
+      const image_urls = files.map((file) => file.path);
 
-    if (existingReview) {
+      const reviewData: CreateReviewType = {
+        userId,
+        rating: parseInt(rating),
+        comment,
+        orderItemId: parseInt(orderItemId),
+        productId: parseInt(productId),
+        images: JSON.stringify(image_urls),
+      };
+
+      const errors = reviewValidation(reviewData);
+      if (Object.keys(errors).length > 0) {
+        return res
+          .status(400)
+          .json({ message: "Dữ liệu không hợp lệ", errors });
+      }
+
+      const existingReview = await reviewModel.checkReview(
+        userId,
+        Number(orderItemId),
+      );
+      if (existingReview) {
+        return res
+          .status(400)
+          .json({ message: "Bạn đã đánh giá sản phẩm này rồi" });
+      }
+
+      const review = await reviewModel.createReview(reviewData);
+      return res
+        .status(201)
+        .json({ message: "Tạo đánh giá thành công", data: review });
+    } else {
       return res
         .status(400)
-        .json({ message: "Bạn đã đánh giá sản phẩm này rồi" });
+        .json({ message: "Vui lòng tải lên ít nhất một hình ảnh" });
     }
-
-    const review = await reviewModel.createReview(reviewData);
-    return res
-      .status(201)
-      .json({ message: "Tạo đánh giá thành công", data: review });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Lỗi server" });

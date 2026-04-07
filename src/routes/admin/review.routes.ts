@@ -12,12 +12,7 @@ router.get(
   reviewController.getAllReviews,
 );
 
-router.get(
-  "/pending",
-  verifyToken,
-  checkRole(["admin"]),
-  reviewController.getPendingReviews,
-);
+router.get("/pending", verifyToken, reviewController.getPendingReviews);
 
 router.get(
   "/:id",

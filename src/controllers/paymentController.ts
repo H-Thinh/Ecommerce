@@ -11,6 +11,7 @@ import { CreatePaymentType, UpdatePaymentType } from "../types/PaymentType";
 import crypto from "crypto";
 import querystring from "qs";
 import paymentMethodModel from "../models/paymentMethodModel";
+import { parseDateRange } from "../utils/parseDateRange";
 
 const tmnCode = process.env.VNPAY_TMN_CODE!;
 const secretKey = process.env.VNPAY_HASH_SECRET!.trim();
@@ -243,32 +244,7 @@ const confirmCodPaymentReceived = async (req: Request, res: Response) => {
 
 const getRevenue = async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, year, month } = req.query;
-
-    let start: Date;
-    let end: Date;
-
-    if (startDate && endDate) {
-      start = new Date(startDate as string);
-      end = new Date(endDate as string);
-
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (year && month) {
-      const y = Number(year);
-      const m = Number(month) - 1;
-
-      start = new Date(y, m, 1);
-      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
-    } else {
-      const now = new Date();
-
-      start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-
-      end = new Date(now);
-      end.setHours(23, 59, 59, 999);
-    }
+    const { start, end } = parseDateRange(req.query);
 
     const revenue = await paymentModel.getRevenueByDate(start, end);
 

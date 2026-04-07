@@ -1,8 +1,8 @@
 import prisma from "../PrismaClient";
 import { CreateReviewType, UpdateReviewType } from "../types/ReviewType";
 
-const createReview = async (data: CreateReviewType) =>
-  await prisma.review.create({
+const createReview = async (data: CreateReviewType) => {
+  return await prisma.review.create({
     data,
     include: {
       user: {
@@ -14,6 +14,7 @@ const createReview = async (data: CreateReviewType) =>
       },
     },
   });
+};
 
 const getAllReviews = async () => {
   const reviews = await prisma.review.findMany({
@@ -122,9 +123,12 @@ const getReviewsByUserId = async (userId: number) =>
     },
   });
 
-const getPendingReviews = async () =>
-  await prisma.review.findMany({
+const getPendingReviews = async () => {
+  const reviews = await prisma.review.findMany({
+    where: { status: "PENDING" },
     include: {
+      product: { select: { name_product: true, image_url: true } },
+      orderItem: { select: { variant: { select: { image_url: true } } } },
       user: {
         select: {
           id: true,
@@ -132,11 +136,33 @@ const getPendingReviews = async () =>
           avatar: true,
         },
       },
+      reviewer: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",
     },
   });
+
+  return reviews.map((review) => {
+    return {
+      id: review.id,
+      rating: review.rating,
+      content: review.comment,
+      createdAt: review.createdAt,
+      status: review.status,
+      product: {
+        name: review.product.name_product,
+        imageProduct: review.orderItem?.variant.image_url,
+      },
+      user: { name: review.user.name, avatar: review.user.avatar },
+    };
+  });
+};
 
 const updateReviewById = async (id: number, data: UpdateReviewType) =>
   await prisma.review.update({
@@ -203,7 +229,16 @@ const replyToReview = async (
   });
 };
 
+const checkReview = async (userId: number, orderItemId: number) => {
+  const review = await prisma.review.findFirst({
+    where: { userId, orderItemId },
+  });
+
+  return !!review;
+};
+
 const reviewModel = {
+  checkReview,
   createReview,
   getAllReviews,
   getReviewById,

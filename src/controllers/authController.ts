@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import authModel from "../models/authModel";
 import jwt from "jsonwebtoken";
 import { AuthenticatedRequest } from "../types/express";
+import userModel from "../models/userModel";
 
 function createJWTAccount(accountId: number, username: string, role: string) {
   const JWT_SECRET = process.env.JWT_SECRET;
@@ -166,9 +167,41 @@ const getInfoUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Lỗi server", type: "error" });
   }
 };
+const verifyEmail = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ message: "Token không hợp lệ", type: "error" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
+
+    const user = await userModel.getUserById(decoded.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng", type: "error" });
+    }
+
+    if (user.is_verifyEmail) {
+      return res.status(400).json({ message: "Email đã được xác minh trước đó", type: "error" });
+    }
+
+    await userModel.verifyUserEmail(decoded.userId);
+
+    return res.status(200).json({ message: "Xác minh email thành công", type: "success" });
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(400).json({ message: "Link xác minh đã hết hạn", type: "error" });
+    }
+    return res.status(400).json({ message: "Token không hợp lệ", type: "error" });
+  }
+};
+
 const authController = {
   logout,
   loginUser,
+  verifyEmail,
   getInfoUser,
   loginAccount,
   getInfoAccount,

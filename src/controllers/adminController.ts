@@ -12,6 +12,7 @@ import {
 
 import AccountType from "../types/AccountType";
 import { CreateUserType, UpdateUserType } from "../types/UserType";
+import { parseDateRange } from "../utils/parseDateRange";
 
 const createAccount = async (req: Request, res: Response) => {
   try {
@@ -294,7 +295,8 @@ const updateUserById = async (req: Request, res: Response) => {
         .json({ message: "Không tìm thấy người dùng", type: "error" });
     }
 
-    const { name, phone, address, email, avatar, points } = req.body || {};
+    const { name, phone, address, email, avatar, points, description, type } =
+      req.body || {};
 
     const existingName = await userModel.checkNameExcludeId(name, id);
 
@@ -318,6 +320,8 @@ const updateUserById = async (req: Request, res: Response) => {
     if (address !== undefined) updateData.address = address;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (points !== undefined) updateData.points = points;
+    if (description !== undefined) updateData.description = description;
+    if (type !== undefined) updateData.type = type;
 
     if (Object.keys(updateData).length === 0) {
       return res
@@ -400,32 +404,7 @@ const searchUser = async (req: Request, res: Response) => {
 
 const getTotalUsers = async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, month, year } = req.query;
-
-    let start: Date;
-    let end: Date;
-
-    if (startDate && endDate) {
-      start = new Date(startDate as string);
-      end = new Date(endDate as string);
-
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (month && year) {
-      const m = Number(month) - 1;
-      const y = Number(year);
-
-      start = new Date(y, m, 1);
-      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
-    } else {
-      const now = new Date();
-
-      start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-
-      end = new Date(now);
-      end.setHours(23, 59, 59, 999);
-    }
+    const { start, end } = parseDateRange(req.query);
 
     const users = await userModel.getTotalUsers(start, end);
 

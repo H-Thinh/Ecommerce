@@ -8,6 +8,8 @@ import { uploadCoverCategory } from "../../middlewares/upload";
 
 const router = Router();
 
+router.get("/top-selling", categoryController.getTopSellingCategories);
+
 router.get("/", verifyToken, categoryController.getCategories);
 
 router.get("/:categoryId", verifyToken, categoryController.getCategoryById);

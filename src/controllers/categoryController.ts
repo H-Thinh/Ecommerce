@@ -132,7 +132,7 @@ const deleteCategoryById = async (req: Request, res: Response) => {
   try {
     const categoryId = Number(req.params.categoryId);
 
-    const categoryExist = await categoryModel.getCategoryById(categoryId);
+    const categoryExist = await categoryModel.deleteCategoryById(categoryId);
 
     if (!categoryExist) {
       return res
@@ -228,6 +228,20 @@ const searchCategory = async (req: Request, res: Response) => {
   }
 };
 
+const getTopSellingCategories = async (req: Request, res: Response) => {
+  try {
+    const data = await categoryModel.getTopSellingCategories();
+    return res.status(200).json({
+      message: "Lấy top thể loại bán chạy thành công",
+      data,
+      type: "success",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Lỗi server", type: "error" });
+  }
+};
+
 const categoryController = {
   getCategories,
   searchCategory,
@@ -235,6 +249,7 @@ const categoryController = {
   getCategoryById,
   updateCategoryById,
   deleteCategoryById,
+  getTopSellingCategories,
   getProductBySlugCategory,
 };
 

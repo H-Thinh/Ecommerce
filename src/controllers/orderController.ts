@@ -8,9 +8,12 @@ import { CreateOrderType } from "../types/OrderType";
 
 import orderModel from "../models/orderModel";
 import productModel from "../models/productModel";
-import returnModel from "../models/returnModel";
 import orderStatusModel from "../models/orderStatusModel";
-import productProducer from "../services/rabbitmq/product/product.producer";
+import {
+  publishOrderConfirmationEmail,
+  publishOrderStatusUpdateEmail,
+} from "../services/rabbitmq/order/order.producer";
+import { parseDateRange } from "../utils/parseDateRange";
 
 const createOrder = async (req: Request, res: Response) => {
   try {
@@ -36,19 +39,16 @@ const createOrder = async (req: Request, res: Response) => {
       pointDiscount,
     } = req.body || {};
 
-    // Validate item array
     if (!item || !Array.isArray(item) || item.length === 0) {
       return res
         .status(400)
         .json({ message: "Vui lòng thêm sản phẩm vào đơn hàng" });
     }
 
-    // Validate và format items
     const formattedItems = [];
     for (let i = 0; i < item.length; i++) {
       const orderItem = item[i];
 
-      // Parse và validate từng field
       const variantId = parseInt(orderItem.variantId.toString());
       const price = parseFloat(orderItem.price.toString());
       const quantity = parseInt(orderItem.quantity.toString());
@@ -69,7 +69,6 @@ const createOrder = async (req: Request, res: Response) => {
         });
       }
 
-      // Check variant exists
       const variant = await productModel.getProductVariantsById(variantId);
 
       if (!variant) {
@@ -124,9 +123,20 @@ const createOrder = async (req: Request, res: Response) => {
 
     const order = await orderModel.createOrder(orderData);
 
-    for (const item of order.items) {
-      await productProducer.publishProductStatusChanged(item.variant.productId);
-    }
+    publishOrderConfirmationEmail({
+      to: order.receiver_email,
+      receiverName: order.receiver_name,
+      orderId: order.id,
+      totalPrice: Number(order.total_price),
+      shippingFee: Number(order.shipping_fee),
+      paymentMethod: order.paymentMethod.name,
+      receiverAddress: order.receiver_address,
+      items: order.items.map((item) => ({
+        name: item.variant.product.name_product,
+        quantity: item.quantity,
+        price: Number(item.price),
+      })),
+    });
 
     return res.status(201).json({
       message: "Tạo đơn hàng thành công",
@@ -441,13 +451,53 @@ const updateOrderStatusById = async (req: Request, res: Response) => {
       Number(orderId),
     );
 
-    if (!updatedOrder) {
-      return res.status(404).json({ message: "Order not found" });
+    if (updatedOrder.user?.email) {
+      publishOrderStatusUpdateEmail({
+        to: updatedOrder.user.email,
+        receiverName: updatedOrder.user.name,
+        orderId: updatedOrder.id,
+        statusName: updatedOrder.status.name,
+        statusHex: updatedOrder.status.hex,
+      });
     }
 
     return res.status(200).json({
-      message: "Order status updated successfully",
+      message: "Đã cập nhật trạng thái đơn hàng",
       data: updatedOrder,
+    });
+  } catch (error: any) {
+    console.log(error);
+    return res.status(500).json({
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
+const confirmOrderReceived = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Bạn chưa đăng nhập",
+        type: "error",
+      });
+    }
+
+    const { orderId } = req.params;
+
+    if (!orderId || isNaN(Number(orderId))) {
+      return res.status(400).json({ message: "Invalid orderId" });
+    }
+
+    const OrderReceived = await orderModel.confirmOrderReceived(
+      Number(orderId),
+      userId,
+    );
+
+    return res.status(200).json({
+      message: "Nhận hàng thành công",
+      data: OrderReceived,
     });
   } catch (error: any) {
     console.log(error);
@@ -459,32 +509,7 @@ const updateOrderStatusById = async (req: Request, res: Response) => {
 
 const getTotalOrders = async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, month, year } = req.query;
-
-    let start: Date;
-    let end: Date;
-
-    if (startDate && endDate) {
-      start = new Date(startDate as string);
-      end = new Date(endDate as string);
-
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (month && year) {
-      const m = Number(month) - 1;
-      const y = Number(year);
-
-      start = new Date(y, m, 1);
-      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
-    } else {
-      const now = new Date();
-
-      start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-
-      end = new Date(now);
-      end.setHours(23, 59, 59, 999);
-    }
+    const { start, end } = parseDateRange(req.query);
 
     const orders = await orderModel.getTotalOrders(start, end);
 
@@ -495,6 +520,44 @@ const getTotalOrders = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
+const getTotalSoldProducts = async (req: Request, res: Response) => {
+  try {
+    const { start, end } = parseDateRange(req.query);
+
+    const totalProductsSold = await orderModel.getTotalSoldProducts(start, end);
+
+    return res.status(200).json({
+      message: "Lấy tổng sản phẩm đã bán thành công",
+      data: totalProductsSold,
+      type: "success",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Lỗi server",
+      type: "error",
+    });
+  }
+};
+
+const getLatestPendingOrders = async (req: Request, res: Response) => {
+  try {
+    const orders = await orderModel.getLatestPendingOrders();
+
+    res.status(200).json({
+      data: orders,
+      message: "Lấy danh sách đơn hàng thành công",
+      type: "success",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Lỗi server",
+      type: "error",
+    });
   }
 };
 
@@ -509,7 +572,10 @@ const orderController = {
   cancelOrderByAdmin,
   cancelOrderByUserId,
   returnOrderByUserId,
+  confirmOrderReceived,
+  getTotalSoldProducts,
   updateOrderStatusById,
+  getLatestPendingOrders,
 };
 
 export default orderController;

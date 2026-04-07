@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 import userModel from "../models/userModel";
 
@@ -11,46 +12,47 @@ import {
 import { CreateUserType, UpdateUserType } from "../types/UserType";
 
 import { AuthenticatedRequest } from "../types/express";
+import { publishVerifyEmail } from "../services/rabbitmq/order/order.producer";
 
 const createUser = async (req: Request, res: Response) => {
   try {
     const { name, email, password, phone } = req.body || {};
 
-    const userData: CreateUserType = {
-      name,
-      email,
-      password,
-      phone,
-    };
+    const userData: CreateUserType = { name, email, password, phone };
 
     const errors = userValidation(userData);
     if (Object.keys(errors).length > 0) {
-      return res
-        .status(400)
-        .json({ message: "Dữ liệu không hợp lệ", data: errors, type: "error" });
+      return res.status(400).json({ message: "Dữ liệu không hợp lệ", data: errors, type: "error" });
     }
 
     const existingEmail = await userModel.getUserByEmail(email);
     if (existingEmail) {
-      return res
-        .status(400)
-        .json({ message: "Email đã tồn tại", type: "error" });
+      return res.status(400).json({ message: "Email đã tồn tại", type: "error" });
     }
 
     const existingName = await userModel.getUserByName(name);
     if (existingName) {
-      return res
-        .status(400)
-        .json({ message: "Name đã tồn tại", type: "error" });
+      return res.status(400).json({ message: "Name đã tồn tại", type: "error" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     userData.password = hashedPassword;
 
-    await userModel.createUser(userData);
+    const user = await userModel.createUser(userData);
+
+    // Tạo verify token hết hạn 24h
+    const verifyToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET!,
+      { expiresIn: "24h" },
+    );
+
+    const verifyUrl = `${process.env.CLIENT_URL}/verify-email?token=${verifyToken}`;
+
+    publishVerifyEmail({ to: user.email, name: user.name, verifyUrl });
+
     return res.status(201).json({
-      message: "Tạo người dùng thành công",
+      message: "Tạo người dùng thành công. Vui lòng kiểm tra email để xác minh tài khoản.",
       type: "success",
     });
   } catch (error) {

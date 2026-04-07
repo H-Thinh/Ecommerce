@@ -353,8 +353,8 @@ model Order {
   delivered_at          DateTime?
   shipped_at            DateTime?
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   voucher       Voucher?      @relation(fields: [voucherId], references: [id])
@@ -489,6 +489,7 @@ model Payment {
   collectedByAdminId    Int?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
+  received_at           DateTime?
 
   collectedByAdmin Account?      @relation(fields: [collectedByAdminId], references: [id])
   order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -497,26 +498,14 @@ model Payment {
 }
 
 model DailyReport {
-  id            Int      @id @default(autoincrement())
-  report_date   DateTime @unique
-  total_orders  Int      @default(0)
-  total_revenue Decimal  @default("0") @db.Decimal(18, 2)
-  new_users     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model MonthlyReport {
-  id            Int      @id @default(autoincrement())
-  year          Int
-  month         Int
-  total_orders  Int      @default(0)
-  total_revenue Decimal  @default("0") @db.Decimal(18, 2)
-  new_users     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@unique([year, month])
+  id                  Int      @id @default(autoincrement())
+  report_date         DateTime @unique
+  total_orders        Int      @default(0)
+  total_revenue       Decimal  @default("0") @db.Decimal(18, 2)
+  new_users           Int      @default(0)
+  total_products_sold Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model PermissionGroup {

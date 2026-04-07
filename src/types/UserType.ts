@@ -14,6 +14,8 @@ export interface UpdateUserType {
   address?: string;
   avatar?: string;
   points?: number;
+  type?: "increase" | "decrease";
+  description?: string;
 }
 
 export default interface UserType {

@@ -59,6 +59,7 @@ const getUserById = async (id: number) =>
       avatar: true,
       is_active: true,
       pointHistory: true,
+      is_verifyEmail: true,
     },
   });
 
@@ -100,27 +101,46 @@ const getUserByName = async (name: string) =>
     },
   });
 
-const updateUserById = async (id: number, data: UpdateUserType) =>
-  await prisma.user.update({
-    where: { id },
-    data: {
-      address: data.address,
-      avatar: data.avatar,
-      email: data.email,
-      name: data.name,
-      phone: data.phone,
-      points: { increment: Number(data.points) },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      address: true,
-      points: true,
-      avatar: true,
-    },
+const updateUserById = async (id: number, data: UpdateUserType) => {
+  return await prisma.$transaction(async (tx) => {
+    const incrementPoints = Number(data.points ?? 0);
+
+    const user = await tx.user.update({
+      where: { id },
+      data: {
+        address: data.address,
+        avatar: data.avatar,
+        email: data.email,
+        name: data.name,
+        phone: data.phone,
+        points:
+          incrementPoints !== 0 ? { increment: incrementPoints } : undefined,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        points: true,
+        avatar: true,
+      },
+    });
+
+    if (data.type && incrementPoints !== 0) {
+      await tx.pointHistory.create({
+        data: {
+          points: incrementPoints,
+          type: data.type,
+          description: data.description,
+          userId: user.id,
+        },
+      });
+    }
+
+    return user;
   });
+};
 
 const deleteUserById = async (id: number) =>
   await prisma.user.delete({
@@ -176,6 +196,12 @@ const getTotalUsers = async (startDate: Date, endDate: Date) => {
   return result._count;
 };
 
+const verifyUserEmail = async (id: number) =>
+  await prisma.user.update({
+    where: { id },
+    data: { is_verifyEmail: true },
+  });
+
 const userModel = {
   createUser,
   searchUser,
@@ -186,6 +212,7 @@ const userModel = {
   getUserByEmail,
   updateUserById,
   deleteUserById,
+  verifyUserEmail,
   updateUserPoints,
   checkNameExcludeId,
 };

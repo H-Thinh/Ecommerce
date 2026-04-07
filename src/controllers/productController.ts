@@ -4,8 +4,6 @@ import productModel from "../models/productModel";
 
 import ProductType, { ProductVariantType } from "../types/ProductType";
 
-import productProducer from "../services/rabbitmq/product/product.producer";
-
 import slugify from "slugify";
 
 import { AuthenticatedRequest } from "../types/express";
@@ -138,7 +136,8 @@ const updateProductById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Product này không tồn tại" });
     }
 
-    const { name, description, price, categoryId, saleId } = req.body || {};
+    const { name, description, price, categoryId, saleId, season } =
+      req.body || {};
 
     const files = req.files as Express.Multer.File[];
 
@@ -151,7 +150,8 @@ const updateProductById = async (req: Request, res: Response) => {
     if (price !== undefined) dataUpdate.price = price;
     if (categoryId !== undefined) dataUpdate.categoryId = Number(categoryId);
     if (saleId !== undefined) dataUpdate.saleId = Number(saleId);
-    if (image_urls !== undefined)
+    if (season !== undefined) dataUpdate.season = season;
+    if (image_urls.length !== 0)
       dataUpdate.image_url = JSON.stringify(image_urls);
 
     if (Object.keys(dataUpdate).length === 0) {
@@ -162,7 +162,7 @@ const updateProductById = async (req: Request, res: Response) => {
 
     res
       .status(200)
-      .json({ message: "Cập nhật permission thành công", data: product });
+      .json({ message: "Cập nhật product thành công", data: product });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Lỗi server" });
@@ -215,8 +215,6 @@ const createProductVariant = async (req: Request, res: Response) => {
       stock: Number(stock),
       image_url: image,
     });
-
-    await productProducer.publishProductStatusChanged(variant.productId);
 
     res.status(201).json({ message: "Tạo dữ liệu thành công", data: variant });
   } catch (error) {

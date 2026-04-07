@@ -7,15 +7,14 @@ import { checkRole } from "../../middlewares/checkRole";
 
 const router = Router();
 
+router.get("/sold-products", verifyToken, orderController.getTotalSoldProducts);
+
 router.get("/count", verifyToken, orderController.getTotalOrders);
 
-router.get("/:orderId", verifyToken, orderController.getOrderById);
-
-router.patch(
-  "/:orderId",
+router.get(
+  "/latest-pending",
   verifyToken,
-  checkRole(["admin"]),
-  orderController.updateOrderStatusById,
+  orderController.getLatestPendingOrders,
 );
 
 router.get(
@@ -24,12 +23,20 @@ router.get(
   checkRole(["admin"]),
   orderController.getAllOrders,
 );
-
 router.post(
   "/",
   verifyToken,
   checkRole(["admin"]),
   orderController.createOrder,
+);
+
+router.get("/:orderId", verifyToken, orderController.getOrderById);
+
+router.patch(
+  "/:orderId",
+  verifyToken,
+  checkRole(["admin"]),
+  orderController.updateOrderStatusById,
 );
 
 router.patch(
@@ -45,6 +52,7 @@ router.put(
   checkRole(["admin"]),
   orderController.updateOrderById,
 );
+
 router.delete(
   "/:id",
   verifyToken,

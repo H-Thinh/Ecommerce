@@ -1,10 +1,10 @@
 export interface CreateReviewType {
   userId: number;
   rating: number;
-  comment?: string;
+  comment: string;
   orderItemId: number;
-  images?: string;
-  productId:number
+  images: string;
+  productId: number;
 }
 
 export interface UpdateReviewType {

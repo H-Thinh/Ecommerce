@@ -7,7 +7,7 @@ import { parseImageJson } from "../../utils/parseImageJson";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const HISTORY_TTL = 60 * 60 * 2; // 2 giờ
-const HISTORY_MAX = 20; // giữ tối đa 10 tin gần nhất
+const HISTORY_MAX = 10; // giữ tối đa 10 tin gần nhất
 
 const getHistory = async (userId: number): Promise<ChatMessage[]> => {
   const raw = await redis.get(`chat:${userId}`);

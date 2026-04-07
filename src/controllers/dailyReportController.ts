@@ -72,10 +72,33 @@ const getDailyReportsByMonth = async (req: Request, res: Response) => {
   }
 };
 
+const getRevenueByYear = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query;
+
+    if (!year || typeof year !== "string") {
+      return res.status(400).json({ message: "Thiếu tham số year" });
+    }
+
+    const y = parseInt(year, 10);
+
+    const fullYearData = await dailyReportModel.getRevenueByYear(y);
+
+    return res.status(200).json({
+      message: "Dữ liệu năm " + year,
+      data: fullYearData,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
 const dailyReportController = {
-  generateYesterdayReport,
-  getDailyReportsByMonth,
+  getRevenueByYear,
   getDailyReportsByDay,
+  getDailyReportsByMonth,
+  generateYesterdayReport,
 };
 
 export default dailyReportController;

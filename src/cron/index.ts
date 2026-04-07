@@ -1,6 +1,5 @@
-import { dailyReportCron, monthReportCron } from "./report.cron";
+import { dailyReportCron } from "./report.cron";
 
 export const initCronJobs = () => {
   dailyReportCron();
-  monthReportCron();
 };

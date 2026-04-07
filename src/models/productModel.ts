@@ -84,6 +84,7 @@ const getProductById = async (id: number) => {
       description: true,
       image_url: true,
       variants: { include: { color: true, size: true } },
+      season: true,
     },
   });
 
@@ -413,13 +414,46 @@ const getSaleProducts = async () => {
 };
 
 const createProductVariant = async (data: ProductVariantType) =>
-  await prisma.productVariant.create({
-    data,
-    include: {
-      color: true,
-      size: true,
-      product: true,
-    },
+  await prisma.$transaction(async (tx) => {
+    const variant = await tx.productVariant.create({
+      data,
+    });
+
+    const product = await tx.product.findUnique({
+      where: { id: variant.productId },
+      include: { variants: true },
+    });
+
+    if (!product) throw new Error("Product not found");
+
+    const sumStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+
+    const statuses = await tx.productStatus.findMany();
+
+    const statusMap: Record<string, number> = Object.fromEntries(
+      statuses.map((s) => [s.name, s.id]),
+    );
+
+    let newStatusId: number;
+
+    if (sumStock === 0) {
+      newStatusId = statusMap["Tạm hết hàng"];
+    } else if (sumStock < 50) {
+      newStatusId = statusMap["Sắp hết hàng"];
+    } else {
+      newStatusId = statusMap["Còn hàng"];
+    }
+
+    if (!newStatusId) {
+      throw new Error("Product status not configured correctly");
+    }
+
+    await tx.product.update({
+      where: { id: product.id },
+      data: { statusId: newStatusId },
+    });
+
+    return variant;
   });
 
 const updateProductVariantById = async (

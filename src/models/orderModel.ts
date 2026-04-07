@@ -2,18 +2,17 @@ import prisma from "../PrismaClient";
 import OrderType, { CreateOrderType } from "../types/OrderType";
 
 const createOrder = async (data: CreateOrderType) => {
-  const SHIPPING_DAYS = 3;
+  const SHIPPING_DAYS = 4;
   const { item, ...orderData } = data;
 
   const estimatedDate = new Date();
   estimatedDate.setDate(estimatedDate.getDate() + SHIPPING_DAYS);
 
   return await prisma.$transaction(async (tx) => {
-    // 1️⃣ Check và trừ stock trước
     for (const orderItem of item) {
       const variant = await tx.productVariant.findUnique({
         where: { id: orderItem.variantId },
-        select: { stock: true },
+        select: { id: true, productId: true, stock: true },
       });
 
       if (!variant) {
@@ -32,9 +31,13 @@ const createOrder = async (data: CreateOrderType) => {
           sold: { increment: orderItem.quantity },
         },
       });
+
+      await tx.product.update({
+        where: { id: variant.productId },
+        data: { sold: { increment: orderItem.quantity } },
+      });
     }
 
-    // 2️⃣ Tạo order + items
     const order = await tx.order.create({
       data: {
         ...orderData,
@@ -260,7 +263,7 @@ const getOrdersByUserId = async (userId: number) => {
           },
           variant: {
             select: {
-              product: { select: { name_product: true } },
+              product: { select: { id: true, name_product: true } },
               image_url: true,
             },
           },
@@ -302,6 +305,7 @@ const getOrdersByUserId = async (userId: number) => {
         name: i.variant.product.name_product,
         price: i.price,
         review,
+        productId: i.variant.product.id,
       };
     });
 
@@ -572,6 +576,48 @@ const updateOrderStatusById = async (id: number) => {
     return await tx.order.update({
       where: { id },
       data: updateData,
+      include: {
+        status: true,
+        user: { select: { name: true, email: true } },
+        paymentMethod: { select: { name: true } },
+      },
+    });
+  });
+};
+
+const confirmOrderReceived = async (orderId: number, userId: number) => {
+  return await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { status: true },
+    });
+
+    if (!order || order.userId !== userId) {
+      throw new Error("Order not found");
+    }
+
+    if (order.status.code === "DELIVERED") {
+      return order;
+    }
+
+    if (order.status.code !== "SHIPPING") {
+      throw new Error("Order is not in shipping state");
+    }
+
+    const statusDelivered = await tx.orderStatus.findUnique({
+      where: { code: "DELIVERED" },
+    });
+
+    if (!statusDelivered) {
+      throw new Error("DELIVERED status not found");
+    }
+
+    return await tx.order.update({
+      where: { id: orderId },
+      data: {
+        statusId: statusDelivered.id,
+        delivered_at: new Date(),
+      },
     });
   });
 };
@@ -580,7 +626,8 @@ const getTotalOrders = async (startDate: Date, endDate: Date) => {
   const result = await prisma.order.aggregate({
     _count: true,
     where: {
-      createdAt: {
+      status: { code: "DELIVERED" },
+      delivered_at: {
         gte: startDate,
         lte: endDate,
       },
@@ -588,6 +635,46 @@ const getTotalOrders = async (startDate: Date, endDate: Date) => {
   });
 
   return result._count;
+};
+
+const getTotalSoldProducts = async (startDate: Date, endDate: Date) => {
+  const { _sum } = await prisma.orderItem.aggregate({
+    _sum: { quantity: true },
+    where: {
+      order: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    },
+  });
+
+  return _sum.quantity ?? 0;
+};
+
+const getLatestPendingOrders = async () => {
+  const orders = await prisma.order.findMany({
+    where: {
+      status: {
+        code: { notIn: ["DELIVERED", "CANCELLED", "RETURN_REJECTED"] },
+      },
+    },
+    include: {
+      status: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+
+  return orders.map((order) => ({
+    id: order.id,
+    name: order.receiver_name,
+    email: order.receiver_email,
+    totalPrice: order.total_price,
+    createdAt: order.createdAt,
+    status: order.status,
+  }));
 };
 
 const orderModel = {
@@ -601,7 +688,10 @@ const orderModel = {
   cancelOrderByAdmin,
   cancelOrderByUserId,
   returnOrderByUserId,
+  confirmOrderReceived,
+  getTotalSoldProducts,
   updateOrderStatusById,
+  getLatestPendingOrders,
 };
 
 export default orderModel;

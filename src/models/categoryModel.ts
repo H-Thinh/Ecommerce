@@ -189,6 +189,32 @@ const searchCategory = async (nameCategory: string) => {
     return { ...rest, name: name_category, imageCategory: image_category };
   });
 };
+
+const getTopSellingCategories = async () => {
+  const result = await prisma.category.findMany({
+    select: {
+      id: true,
+      name_category: true,
+      _count: { select: { products: { where: { sold: { gt: 0 } } } } },
+      products: {
+        select: {
+          sold: true,
+        },
+      },
+    },
+  });
+
+  return result
+    .map(({ name_category, products, id, _count }) => ({
+      id,
+      name: name_category,
+      totalSold: products.reduce((sum, p) => sum + p.sold, 0),
+      totalProducts: _count.products,
+    }))
+    .sort((a, b) => b.totalSold - a.totalSold)
+    .slice(0, 5);
+};
+
 const categoryModel = {
   checkName,
   getCategories,
@@ -198,6 +224,7 @@ const categoryModel = {
   updateCategoryById,
   deleteCategoryById,
   checkNameExcludeId,
+  getTopSellingCategories,
   getProductBySlugCategory,
 };
 
